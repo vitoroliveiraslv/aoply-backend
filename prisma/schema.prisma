@@ -1,0 +1,197 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// 1. Organizações (Multi-tenancy)
+model Organization {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users     User[]
+  devices   Device[]
+  assets    Asset[]
+  playlists Playlist[]
+  schedules Schedule[]
+
+  @@map("organizations")
+}
+
+// 2. Usuários (Admin, Operador, etc.)
+model User {
+  id                String       @id @default(uuid())
+  organizationId    String
+  email             String       @unique
+  passwordHash      String
+  fullName          String
+  role              String       @default("OPERATOR") // SUPERADMIN, ADMIN, OPERATOR, VIEWER
+  isActive          Boolean      @default(true)
+  resetToken        String?
+  resetTokenExpires DateTime?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAssets  Asset[]
+
+  @@map("users")
+}
+
+// 3. Biblioteca de Mídias (Vídeos MP4, URLs YouTube, Imagens)
+model Asset {
+  id                 String       @id @default(uuid())
+  organizationId     String
+  name               String
+  type               String       // VIDEO, YOUTUBE, IMAGE
+  storageKey         String?
+  cdnUrl             String?
+  thumbnailUrl       String?
+  fileSizeBytes      BigInt?
+  checksumSha256     String?
+  transcodeStatus    String       @default("COMPLETED") // PENDING, PROCESSING, COMPLETED, FAILED
+  externalId         String?      // YouTube Video ID (ex: dQw4w9WgXcQ)
+  durationSeconds    Int          @default(30)
+  resolutionWidth    Int?
+  resolutionHeight   Int?
+  mimeType           String?
+  createdById        String?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy          User?        @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  playlistItems      PlaylistItem[]
+  playbackLogs       PlaybackLog[]
+
+  @@map("assets")
+}
+
+// 4. Playlists
+model Playlist {
+  id              String         @id @default(uuid())
+  organizationId  String
+  name            String
+  description     String?
+  interleaveRules String?        // JSON String com regras: {"youtubeFrequency": 3, "adGroupId": "..."}
+  version         Int            @default(1)
+  order           Int            @default(0)
+  isActive        Boolean        @default(true)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  organization    Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  items           PlaylistItem[]
+  scheduleRules   ScheduleRule[]
+  fallbackDevices Device[]       @relation("FallbackPlaylist")
+
+  @@map("playlists")
+}
+
+// 5. Itens da Playlist
+model PlaylistItem {
+  id                   String   @id @default(uuid())
+  playlistId           String
+  assetId              String
+  position             Int
+  category             String   @default("CONTENT") // CONTENT, COMMERCIAL_AD
+  customDurationSeconds Int?
+  isMuted              Boolean  @default(false)
+  createdAt            DateTime @default(now())
+
+  playlist             Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  asset                Asset    @relation(fields: [assetId], references: [id], onDelete: Restrict)
+
+  @@index([playlistId, position])
+  @@map("playlist_items")
+}
+
+// 6. Agendador Semanal (Schedules)
+model Schedule {
+  id             String         @id @default(uuid())
+  organizationId String
+  name           String
+  timezone       String         @default("America/Sao_Paulo")
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  rules          ScheduleRule[]
+  devices        Device[]
+
+  @@map("schedules")
+}
+
+// Regras de Horário por Dia da Semana (0 = Domingo, 1 = Segunda ... 6 = Sábado)
+model ScheduleRule {
+  id         String   @id @default(uuid())
+  scheduleId String
+  playlistId String
+  dayOfWeek  Int      // 0 a 6
+  startTime  String   // "08:00:00"
+  endTime    String   // "12:00:00"
+  priority   Int      @default(1)
+  isActive   Boolean  @default(true)
+
+  schedule   Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  playlist   Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+
+  @@map("schedule_rules")
+}
+
+// 7. Dispositivos / Telas (Smart TVs e TV Boxes)
+model Device {
+  id                   String        @id @default(uuid())
+  organizationId       String?
+  name                 String?
+  location             String?
+  pairingCode          String?       @unique // Código de 6 dígitos gerado pela TV
+  pairingCodeExpiresAt DateTime?
+  deviceTokenHash      String?       // Token de autenticação permanente
+  assignedScheduleId   String?
+  fallbackPlaylistId   String?
+  ipAddress            String?
+  macAddress           String?
+  appVersion           String?
+  osName               String?       // Android TV, Google TV, Tizen, etc.
+  osVersion            String?
+  resolution           String?
+  storageFreeMb        Int?
+  status               String        @default("PENDING_PAIRING") // PENDING_PAIRING, ONLINE, OFFLINE, ERROR
+  lastPingAt           DateTime?
+  currentAssetId       String?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  organization         Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assignedSchedule     Schedule?     @relation(fields: [assignedScheduleId], references: [id], onDelete: SetNull)
+  fallbackPlaylist     Playlist?     @relation("FallbackPlaylist", fields: [fallbackPlaylistId], references: [id], onDelete: SetNull)
+  playbackLogs         PlaybackLog[]
+
+  @@index([organizationId, status])
+  @@map("devices")
+}
+
+// 8. Auditoria de Execução (Proof-of-Play)
+model PlaybackLog {
+  id                          Int      @id @default(autoincrement())
+  deviceId                    String
+  assetId                     String
+  playlistId                  String?
+  startedAt                   DateTime
+  endedAt                     DateTime
+  durationPlayedSeconds       Int
+  completedWithoutInterruption Boolean  @default(true)
+  errorMessage                String?
+
+  device                      Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  asset                       Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@index([deviceId, assetId, startedAt])
+  @@map("playback_logs")
+}

@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: aoply-api
+    env: node
+    plan: free
+    region: oregon
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: DATABASE_URL
+        value: "file:./dev.db"
+      - key: APP_DOMAIN
+        value: "aoply.giroestudo.com.br"
+      - key: APP_URL
+        value: "https://aoply.giroestudo.com.br"
