@@ -513,9 +513,7 @@ export class PlayerController {
       position: absolute;
       bottom: 50px;
       left: 32px;
-      background: rgba(10, 10, 14, 0.82);
-      backdrop-filter: blur(28px) saturate(180%);
-      -webkit-backdrop-filter: blur(28px) saturate(180%);
+      background: rgba(10, 10, 14, 0.94);
       border: 1px solid rgba(255, 255, 255, 0.12);
       border-radius: 9999px;
       padding: 7px 22px 7px 9px;
@@ -1001,9 +999,7 @@ export class PlayerController {
       align-items: center;
       gap: 14px;
       padding: 24px 38px;
-      background: rgba(12, 14, 22, 0.82);
-      backdrop-filter: blur(32px) saturate(180%);
-      -webkit-backdrop-filter: blur(32px) saturate(180%);
+      background: rgba(12, 14, 22, 0.94);
       border: 1px solid rgba(255, 255, 255, 0.12);
       border-radius: 26px;
       box-shadow: 0 24px 60px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.15);
@@ -2216,7 +2212,7 @@ export class PlayerController {
 
           ytPlayer.loadVideoById({
             videoId: asset.externalId,
-            suggestedQuality: 'hd1080'
+            suggestedQuality: 'hd720'
           });
 
           try {
