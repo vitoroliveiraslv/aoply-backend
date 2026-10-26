@@ -406,6 +406,17 @@ export class PlayerController {
       background: #000;
       z-index: 10;
       overflow: hidden;
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      transform-origin: center center;
+    }
+
+    /* Modos de Compensação de Overscan (Anti-Corte para TVs com bordas cortadas) */
+    #player-viewport.overscan-safe-1 {
+      transform: scale(0.95);
+    }
+
+    #player-viewport.overscan-safe-2 {
+      transform: scale(0.90);
     }
 
     /* Deck A: Local Video Player */
@@ -1866,8 +1877,8 @@ export class PlayerController {
     window.onYouTubeIframeAPIReady = function() {
       isYouTubeApiReady = true;
       ytPlayer = new YT.Player('yt-player-target', {
-        height: '100%',
-        width: '100%',
+        height: '1080',
+        width: '1920',
         playerVars: {
           autoplay: 1,
           controls: 0,
@@ -1888,12 +1899,23 @@ export class PlayerController {
             console.log('YouTube Player IFrame pronto!');
             disableCaptions();
             try {
+              if (typeof event.target.setPlaybackQuality === 'function') {
+                event.target.setPlaybackQuality('hd1080');
+              }
               ytPlayer.unMute();
               ytPlayer.setVolume(100);
             } catch (e) {}
           },
           onStateChange: (event) => {
             console.log('YouTube State Change:', event.data);
+
+            if (event.data === YT.PlayerState.BUFFERING) {
+              try {
+                if (typeof ytPlayer.setPlaybackQuality === 'function') {
+                  ytPlayer.setPlaybackQuality('hd1080');
+                }
+              } catch (e) {}
+            }
 
             // Se a tela de pareamento estiver visível ou o aparelho não estiver pareado, força silêncio e parada imediata
             const isPairingVisible = pairingScreen && !pairingScreen.classList.contains('hidden');
@@ -2422,13 +2444,41 @@ export class PlayerController {
       }
     }
 
+    // Controle de Encaixe de Tela (Anti-Corte / Overscan)
+    let currentFitMode = parseInt(localStorage.getItem('aoply_fit_mode') || '0', 10);
+    function applyScreenFit(mode) {
+      currentFitMode = mode % 3;
+      localStorage.setItem('aoply_fit_mode', currentFitMode);
+      const vp = document.getElementById('player-viewport');
+      if (!vp) return;
+      vp.classList.remove('overscan-safe-1', 'overscan-safe-2');
+      if (currentFitMode === 1) {
+        vp.classList.add('overscan-safe-1');
+        showPlaybackOsd('ENCAIXE TV: 95% (ANTI-CORTE)', 'fit', false);
+      } else if (currentFitMode === 2) {
+        vp.classList.add('overscan-safe-2');
+        showPlaybackOsd('ENCAIXE TV: 90% (BORDA AMPLA)', 'fit', false);
+      } else {
+        showPlaybackOsd('ENCAIXE TV: 100% (TELA CHEIA)', 'fit', false);
+      }
+    }
+
+    function cycleScreenFit() {
+      applyScreenFit(currentFitMode + 1);
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      applyScreenFit(currentFitMode);
+    });
+
     // Ponte de Controle Remoto Nativo (Latência Zero para Android TV)
     window.AoplyPlayer = {
       togglePlayPause: function() { togglePlayPause(); },
       pause: function() { pausePlayback(); },
       resume: function() { resumePlayback(); },
       next: function() { skipToNext(); },
-      previous: function() { skipToPrevious(); }
+      previous: function() { skipToPrevious(); },
+      cycleScreenFit: function() { cycleScreenFit(); }
     };
     window.togglePlayPause = togglePlayPause;
     window.pausePlayback = pausePlayback;
@@ -2456,6 +2506,8 @@ export class PlayerController {
         iconSvg = '<svg viewBox="0 0 24 24" fill="currentColor" width="28" height="28"><polygon points="5 4 15 12 5 20 5 4"></polygon><line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"></line></svg>';
       } else if (type === 'previous' || type === 'rewind') {
         iconSvg = '<svg viewBox="0 0 24 24" fill="currentColor" width="28" height="28"><polygon points="19 20 9 12 19 4 19 20"></polygon><line x1="5" y1="19" x2="5" y2="5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"></line></svg>';
+      } else if (type === 'fit') {
+        iconSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="28" height="28"><rect x="2" y="3" width="20" height="14" rx="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>';
       }
 
       osdIconWrap.innerHTML = iconSvg;
@@ -2544,14 +2596,11 @@ export class PlayerController {
       const tb = document.getElementById('simulator-toolbar');
       const isToolbarFocused = tb && document.activeElement && tb.contains(document.activeElement);
 
-      // 1. D-Pad CIMA (KeyUp / KEYCODE_DPAD_UP / 19 / 38): Se em modo dev, foca na barra de testes
-      if (key === 'ArrowUp' || code === 'ArrowUp' || keyCode === 38 || keyCode === 19) {
-        if (document.body.classList.contains('dev-mode')) {
-          e.preventDefault();
-          showTvToolbar();
-          moveTvFocus(0);
-          return;
-        }
+      // 1. D-Pad CIMA (KeyUp / 19 / 38 / 'O'): Alterna o Encaixe de Tela Anti-Corte TV
+      if (key === 'ArrowUp' || code === 'ArrowUp' || keyCode === 38 || keyCode === 19 || key === 'o' || key === 'O') {
+        e.preventDefault();
+        cycleScreenFit();
+        return;
       }
 
       // 2. D-Pad BAIXO (KeyDown / KEYCODE_DPAD_DOWN / 20 / 40): Oculta barra e foca vídeo limpo
