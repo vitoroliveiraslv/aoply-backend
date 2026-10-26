@@ -399,7 +399,7 @@ export class PlayerController {
       left: 0;
       width: 100%;
       height: 100%;
-      object-fit: cover;
+      object-fit: contain;
       background: #000;
       opacity: 0;
       transition: opacity 0.5s ease-in-out;
@@ -429,11 +429,11 @@ export class PlayerController {
     #deck-youtube-container iframe,
     #yt-player-target {
       position: absolute !important;
-      top: 50% !important;
-      left: 50% !important;
+      top: 0 !important;
+      left: 0 !important;
       width: 100vw !important;
       height: 100vh !important;
-      transform: translate(-50%, -50%) scale(1.30) !important;
+      transform: none !important;
       transform-origin: center center !important;
       pointer-events: none !important;
       border: none !important;
@@ -1888,6 +1888,11 @@ export class PlayerController {
 
             if (event.data === YT.PlayerState.PLAYING) {
               disableCaptions();
+              try {
+                if (typeof ytPlayer.setPlaybackQuality === 'function') {
+                  ytPlayer.setPlaybackQuality('hd1080');
+                }
+              } catch (e) {}
               if (!userExplicitlyPaused) {
                 isPaused = false;
                 updatePlayPauseButton();
@@ -2212,8 +2217,14 @@ export class PlayerController {
 
           ytPlayer.loadVideoById({
             videoId: asset.externalId,
-            suggestedQuality: 'hd720'
+            suggestedQuality: 'hd1080'
           });
+
+          if (typeof ytPlayer.setPlaybackQuality === 'function') {
+            try {
+              ytPlayer.setPlaybackQuality('hd1080');
+            } catch (e) {}
+          }
 
           try {
             ytPlayer.playVideo();
