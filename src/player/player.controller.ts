@@ -6,11 +6,19 @@ import { AOPLY_LOGO_WHITE, AOPLY_ICON, AOPLY_LOGO_RED } from './player-assets';
 export class PlayerController {
   @Get()
   getTvPlayer(@Res() res: Response) {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+
     const html = `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>Smart TV Player | Aoply</title>
   <link rel="icon" type="image/png" href="${AOPLY_ICON}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -28,13 +36,18 @@ export class PlayerController {
       user-select: none;
     }
 
-    body {
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
       background-color: #000000;
+    }
+
+    body {
       color: #ffffff;
       font-family: 'Plus Jakarta Sans', sans-serif;
-      overflow: hidden;
-      width: 100vw;
-      height: 100vh;
       position: relative;
     }
 
@@ -383,13 +396,16 @@ export class PlayerController {
        2. MOTOR DUAL-DECK DO PLAYER DE VÍDEO
        ========================================= */
     #player-viewport {
-      position: absolute;
+      position: fixed;
       top: 0;
       left: 0;
-      width: 100vw;
-      height: 100vh;
+      right: 0;
+      bottom: 0;
+      width: 100% !important;
+      height: 100% !important;
       background: #000;
       z-index: 10;
+      overflow: hidden;
     }
 
     /* Deck A: Local Video Player */
@@ -402,17 +418,19 @@ export class PlayerController {
       object-fit: contain;
       background: #000;
       opacity: 0;
-      transition: opacity 0.5s ease-in-out;
+      transition: opacity 0.4s ease-in-out;
       z-index: 20;
     }
 
-    /* Deck B: YouTube Player IFrame com recorte de branding / título / watermark */
+    /* Deck B: YouTube Player IFrame */
     #deck-youtube-container {
       position: absolute;
       top: 0;
       left: 0;
-      width: 100vw;
-      height: 100vh;
+      right: 0;
+      bottom: 0;
+      width: 100% !important;
+      height: 100% !important;
       overflow: hidden !important;
       opacity: 0;
       transition: opacity 0.4s ease-in-out;
@@ -431,12 +449,15 @@ export class PlayerController {
       position: absolute !important;
       top: 0 !important;
       left: 0 !important;
-      width: 100vw !important;
-      height: 100vh !important;
-      transform: none !important;
-      transform-origin: center center !important;
-      pointer-events: none !important;
+      right: 0 !important;
+      bottom: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      margin: 0 !important;
+      padding: 0 !important;
       border: none !important;
+      transform: none !important;
+      pointer-events: none !important;
     }
 
     .deck-active {
@@ -1862,6 +1883,7 @@ export class PlayerController {
           cc_lang_pref: 'none',
           playsinline: 1,
           enablejsapi: 1,
+          vq: 'hd1080',
           origin: window.location.origin
         },
         events: {
@@ -1888,11 +1910,6 @@ export class PlayerController {
 
             if (event.data === YT.PlayerState.PLAYING) {
               disableCaptions();
-              try {
-                if (typeof ytPlayer.setPlaybackQuality === 'function') {
-                  ytPlayer.setPlaybackQuality('hd1080');
-                }
-              } catch (e) {}
               if (!userExplicitlyPaused) {
                 isPaused = false;
                 updatePlayPauseButton();
@@ -2219,21 +2236,6 @@ export class PlayerController {
             videoId: asset.externalId,
             suggestedQuality: 'hd1080'
           });
-
-          if (typeof ytPlayer.setPlaybackQuality === 'function') {
-            try {
-              ytPlayer.setPlaybackQuality('hd1080');
-            } catch (e) {}
-          }
-
-          try {
-            ytPlayer.playVideo();
-          } catch (e) {
-            try {
-              ytPlayer.mute();
-              ytPlayer.playVideo();
-            } catch (err) {}
-          }
 
           disableCaptions();
           deckYouTube.classList.add('deck-active');
