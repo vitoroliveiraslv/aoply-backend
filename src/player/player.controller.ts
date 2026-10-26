@@ -1308,21 +1308,18 @@ export class PlayerController {
     const offlineBanner = document.getElementById('offline-banner');
     const emptyPlaylistScreen = document.getElementById('empty-playlist-screen');
 
+    let isAudioUnlocked = false;
     function unlockAudio() {
+      if (isAudioUnlocked) return;
+      isAudioUnlocked = true;
       if (ytPlayer && typeof ytPlayer.unMute === 'function') {
         try {
           ytPlayer.unMute();
           ytPlayer.setVolume(100);
-          if (!userExplicitlyPaused) {
-            ytPlayer.playVideo();
-          }
         } catch (e) {}
       }
       if (deckVideo) {
         deckVideo.muted = false;
-        if (!userExplicitlyPaused && deckVideo.classList.contains('deck-active')) {
-          deckVideo.play().catch(() => {});
-        }
       }
     }
 
@@ -2424,6 +2421,20 @@ export class PlayerController {
         btn.innerText = isPaused ? 'Reproduzir' : 'Pausar';
       }
     }
+
+    // Ponte de Controle Remoto Nativo (Latência Zero para Android TV)
+    window.AoplyPlayer = {
+      togglePlayPause: function() { togglePlayPause(); },
+      pause: function() { pausePlayback(); },
+      resume: function() { resumePlayback(); },
+      next: function() { skipToNext(); },
+      previous: function() { skipToPrevious(); }
+    };
+    window.togglePlayPause = togglePlayPause;
+    window.pausePlayback = pausePlayback;
+    window.resumePlayback = resumePlayback;
+    window.skipToNext = skipToNext;
+    window.skipToPrevious = skipToPrevious;
 
     // Controle do OSD (On-Screen Display)
     function showPlaybackOsd(text, type, keepVisible = false) {
