@@ -392,11 +392,40 @@ export class PlayerController {
       gap: 8px;
     }
 
+    /* Master App Viewport Container com Compensação de Overscan para Smart TVs */
+    #aoply-app-root {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      width: 100% !important;
+      height: 100% !important;
+      overflow: hidden;
+      background: #000;
+      transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+      transform-origin: center center;
+      z-index: 5;
+    }
+
+    /* Modos de Compensação de Overscan (Anti-Corte para TVs com bordas cortadas) */
+    #aoply-app-root.overscan-safe-1 {
+      transform: scale(0.96);
+    }
+
+    #aoply-app-root.overscan-safe-2 {
+      transform: scale(0.92);
+    }
+
+    #aoply-app-root.overscan-safe-3 {
+      transform: scale(0.88);
+    }
+
     /* =========================================
        2. MOTOR DUAL-DECK DO PLAYER DE VÍDEO
        ========================================= */
     #player-viewport {
-      position: fixed;
+      position: absolute;
       top: 0;
       left: 0;
       right: 0;
@@ -406,17 +435,6 @@ export class PlayerController {
       background: #000;
       z-index: 10;
       overflow: hidden;
-      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-      transform-origin: center center;
-    }
-
-    /* Modos de Compensação de Overscan (Anti-Corte para TVs com bordas cortadas) */
-    #player-viewport.overscan-safe-1 {
-      transform: scale(0.95);
-    }
-
-    #player-viewport.overscan-safe-2 {
-      transform: scale(0.90);
     }
 
     /* Deck A: Local Video Player */
@@ -1108,8 +1126,10 @@ export class PlayerController {
 
   <div id="offline-banner">MODO OFFLINE ATIVADO - REPRODUZINDO VÍDEOS EM CACHE LOCAL</div>
 
-  <!-- 1. TELA DE PAREAMENTO (Estilo YouTube on TV) -->
-  <div id="pairing-screen">
+  <!-- MASTER APP CONTAINER (Compensação Global de Overscan / Anti-Corte para Smart TV) -->
+  <div id="aoply-app-root">
+    <!-- 1. TELA DE PAREAMENTO (Estilo YouTube on TV) -->
+    <div id="pairing-screen">
     <!-- Efeito Líquido: Bolas degradê dançando suavemente -->
     <div class="liquid-glow-bg" aria-hidden="true">
       <div class="liquid-blob blob-1"></div>
@@ -1228,17 +1248,6 @@ export class PlayerController {
     </div>
   </div>
 
-  <!-- OSD (On-Screen Display) para Comandos do Controle Remoto da TV -->
-  <div id="remote-osd" class="remote-osd hidden">
-    <div class="osd-icon-wrap" id="osd-icon-wrap">
-      <svg id="osd-icon-svg" viewBox="0 0 24 24" fill="currentColor" width="28" height="28">
-        <rect x="6" y="4" width="4" height="16" rx="1.5"></rect>
-        <rect x="14" y="4" width="4" height="16" rx="1.5"></rect>
-      </svg>
-    </div>
-    <div class="osd-text" id="osd-text">PAUSADO</div>
-  </div>
-
   <!-- Toast Minimalista de "Tocando Agora" com Disco CD Giratório da Aoply -->
   <div id="hud-nowplaying-toast" class="hud-toast">
     <div class="toast-cd-spin-wrap" id="toast-cd-wrap">
@@ -1271,6 +1280,18 @@ export class PlayerController {
     <div class="bar-progress-line">
       <div class="bar-progress-fill" id="hud-progress-fill"></div>
     </div>
+  </div>
+  </div> <!-- FECHA #aoply-app-root -->
+
+  <!-- OSD (On-Screen Display) para Comandos do Controle Remoto da TV (Centro Absoluto) -->
+  <div id="remote-osd" class="remote-osd hidden">
+    <div class="osd-icon-wrap" id="osd-icon-wrap">
+      <svg id="osd-icon-svg" viewBox="0 0 24 24" fill="currentColor" width="28" height="28">
+        <rect x="6" y="4" width="4" height="16" rx="1.5"></rect>
+        <rect x="14" y="4" width="4" height="16" rx="1.5"></rect>
+      </svg>
+    </div>
+    <div class="osd-text" id="osd-text">PAUSADO</div>
   </div>
 
   <!-- =========================================
@@ -1873,12 +1894,35 @@ export class PlayerController {
       } catch (e) {}
     }
 
+    let hasEnforcedQualityForCurrentVideo = false;
+    function enforceMaxQuality() {
+      try {
+        if (!ytPlayer) return;
+        if (typeof ytPlayer.getAvailableQualityLevels === 'function') {
+          const levels = ytPlayer.getAvailableQualityLevels();
+          if (Array.isArray(levels) && levels.length > 0) {
+            // Prioriza hd1080 (Full HD), se não disponível tenta hd720 ou o maior disponível (evita 4k/highres para não sobrecarregar GPU da TV)
+            const target = levels.includes('hd1080') ? 'hd1080' : (levels.includes('hd720') ? 'hd720' : (levels.find(l => l !== 'highres') || levels[0]));
+            const current = typeof ytPlayer.getPlaybackQuality === 'function' ? ytPlayer.getPlaybackQuality() : null;
+            if (current !== target && typeof ytPlayer.setPlaybackQuality === 'function') {
+              console.log('Ajustando qualidade YouTube para:', target, '(anterior:', current, ')');
+              ytPlayer.setPlaybackQuality(target);
+            }
+          }
+        } else if (typeof ytPlayer.setPlaybackQuality === 'function') {
+          ytPlayer.setPlaybackQuality('hd1080');
+        }
+      } catch (e) {
+        console.warn('Erro ao ajustar qualidade do YouTube:', e);
+      }
+    }
+
     // Inicialização do YouTube IFrame API
     window.onYouTubeIframeAPIReady = function() {
       isYouTubeApiReady = true;
       ytPlayer = new YT.Player('yt-player-target', {
-        height: '1080',
-        width: '1920',
+        height: '100%',
+        width: '100%',
         playerVars: {
           autoplay: 1,
           controls: 0,
@@ -1898,10 +1942,8 @@ export class PlayerController {
           onReady: (event) => {
             console.log('YouTube Player IFrame pronto!');
             disableCaptions();
+            enforceMaxQuality();
             try {
-              if (typeof event.target.setPlaybackQuality === 'function') {
-                event.target.setPlaybackQuality('hd1080');
-              }
               ytPlayer.unMute();
               ytPlayer.setVolume(100);
             } catch (e) {}
@@ -1910,11 +1952,7 @@ export class PlayerController {
             console.log('YouTube State Change:', event.data);
 
             if (event.data === YT.PlayerState.BUFFERING) {
-              try {
-                if (typeof ytPlayer.setPlaybackQuality === 'function') {
-                  ytPlayer.setPlaybackQuality('hd1080');
-                }
-              } catch (e) {}
+              enforceMaxQuality();
             }
 
             // Se a tela de pareamento estiver visível ou o aparelho não estiver pareado, força silêncio e parada imediata
@@ -1929,6 +1967,10 @@ export class PlayerController {
 
             if (event.data === YT.PlayerState.PLAYING) {
               disableCaptions();
+              if (!hasEnforcedQualityForCurrentVideo) {
+                hasEnforcedQualityForCurrentVideo = true;
+                enforceMaxQuality();
+              }
               if (!userExplicitlyPaused) {
                 isPaused = false;
                 updatePlayPauseButton();
@@ -2251,6 +2293,7 @@ export class PlayerController {
             ytPlayer.setVolume(100);
           } catch (e) {}
 
+          hasEnforcedQualityForCurrentVideo = false;
           ytPlayer.loadVideoById({
             videoId: asset.externalId,
             suggestedQuality: 'hd1080'
@@ -2445,21 +2488,27 @@ export class PlayerController {
     }
 
     // Controle de Encaixe de Tela (Anti-Corte / Overscan)
-    let currentFitMode = parseInt(localStorage.getItem('aoply_fit_mode') || '0', 10);
+    let currentFitMode = localStorage.getItem('aoply_fit_mode') !== null
+      ? parseInt(localStorage.getItem('aoply_fit_mode'), 10)
+      : 1; // Padrão inteligente: 1 (96% Anti-Corte Seguro)
+
     function applyScreenFit(mode) {
-      currentFitMode = mode % 3;
+      currentFitMode = mode % 4;
       localStorage.setItem('aoply_fit_mode', currentFitMode);
-      const vp = document.getElementById('player-viewport');
-      if (!vp) return;
-      vp.classList.remove('overscan-safe-1', 'overscan-safe-2');
+      const appRoot = document.getElementById('aoply-app-root') || document.getElementById('player-viewport');
+      if (!appRoot) return;
+      appRoot.classList.remove('overscan-safe-1', 'overscan-safe-2', 'overscan-safe-3');
       if (currentFitMode === 1) {
-        vp.classList.add('overscan-safe-1');
-        showPlaybackOsd('ENCAIXE TV: 95% (ANTI-CORTE)', 'fit', false);
+        appRoot.classList.add('overscan-safe-1');
+        showPlaybackOsd('ENCAIXE TV: 96% (ANTI-CORTE RECOMENDADO)', 'fit', false);
       } else if (currentFitMode === 2) {
-        vp.classList.add('overscan-safe-2');
-        showPlaybackOsd('ENCAIXE TV: 90% (BORDA AMPLA)', 'fit', false);
+        appRoot.classList.add('overscan-safe-2');
+        showPlaybackOsd('ENCAIXE TV: 92% (BORDA AMPLA)', 'fit', false);
+      } else if (currentFitMode === 3) {
+        appRoot.classList.add('overscan-safe-3');
+        showPlaybackOsd('ENCAIXE TV: 88% (MÁXIMO RECUO)', 'fit', false);
       } else {
-        showPlaybackOsd('ENCAIXE TV: 100% (TELA CHEIA)', 'fit', false);
+        showPlaybackOsd('ENCAIXE TV: 100% (TELA CHEIA 1:1)', 'fit', false);
       }
     }
 
