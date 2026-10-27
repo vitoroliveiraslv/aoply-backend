@@ -465,7 +465,7 @@ let PlayerController = class PlayerController {
       left: 0;
       width: 100%;
       height: 100%;
-      object-fit: contain;
+      object-fit: cover;
       background: #000;
       opacity: 0;
       transition: opacity 0.4s ease-in-out;
@@ -1406,6 +1406,7 @@ let PlayerController = class PlayerController {
     let isPaused = false;
     let userExplicitlyPaused = false;
     let elapsedSeconds = 0;
+    let hasStartedCurrentVideo = false;
     let osdTimeout = null;
     let playbackInterval = null;
     let itemDurationRemaining = 0;
@@ -2067,7 +2068,7 @@ let PlayerController = class PlayerController {
           cc_lang_pref: 'none',
           playsinline: 1,
           enablejsapi: 1,
-          vq: 'hd1080',
+          vq: 'hd720',
           origin: (window.location.origin && window.location.origin !== 'null' && !window.location.origin.startsWith('file')) ? window.location.origin : 'https://aoply.giroestudo.com.br',
           widget_referrer: (window.location.origin && window.location.origin !== 'null' && !window.location.origin.startsWith('file')) ? window.location.origin : 'https://aoply.giroestudo.com.br'
         },
@@ -2094,6 +2095,7 @@ let PlayerController = class PlayerController {
             }
 
             if (event.data === YT.PlayerState.PLAYING) {
+              hasStartedCurrentVideo = true;
               disableCaptions();
               hideTransitionVeil(); // Transição suave para o novo vídeo, eliminando qualquer frame congelado anterior
               if (!userExplicitlyPaused) {
@@ -2107,9 +2109,12 @@ let PlayerController = class PlayerController {
                 } catch (e) {}
               }
             } else if (event.data === YT.PlayerState.PAUSED) {
-              // Se foi uma pausa automática (ex: política de autoplay do navegador) e o usuário não pausou intencionalmente:
-              if (!userExplicitlyPaused) {
-                console.warn('Pausa automática do YouTube detectada (Autoplay Policy). Retomando reprodução...');
+              if (userExplicitlyPaused) {
+                isPaused = true;
+                updatePlayPauseButton();
+              } else if (!hasStartedCurrentVideo) {
+                // Autoplay bloqueado pelo navegador no início do vídeo: tenta desbloquear
+                console.warn('Autoplay bloqueado pelo navegador no início do vídeo. Retomando...');
                 try {
                   ytPlayer.playVideo();
                 } catch (e) {
@@ -2119,9 +2124,12 @@ let PlayerController = class PlayerController {
                   } catch (err) {}
                 }
               } else {
-                isPaused = true;
-                updatePlayPauseButton();
+                // Vídeo já estava em reprodução: NÃO forçar playVideo() imediatamente!
+                // Permite que o buffer de rede da Smart TV carregue de forma estável sem travar o player.
+                console.log('Vídeo aguardando estabilização do buffer de rede...');
               }
+            } else if (event.data === YT.PlayerState.BUFFERING) {
+              console.log('YouTube bufferizando mídia para reprodução estável...');
             } else if (event.data === YT.PlayerState.CUED) {
               // Vídeo pronto: dá play imediatamente se não pausado pelo usuário
               if (!userExplicitlyPaused && typeof ytPlayer.playVideo === 'function') {
@@ -2445,11 +2453,12 @@ let PlayerController = class PlayerController {
             ytPlayer.setVolume(100);
           } catch (e) {}
 
+          hasStartedCurrentVideo = false;
           hasEnforcedQualityForCurrentVideo = false;
           const targetVideoId = (asset.externalId || '').trim();
           ytPlayer.loadVideoById({
             videoId: targetVideoId,
-            suggestedQuality: 'hd1080'
+            suggestedQuality: 'hd720'
           });
 
           disableCaptions();
@@ -2710,12 +2719,21 @@ let PlayerController = class PlayerController {
       }
     }
 
-    // Controle de Encaixe de Tela (Anti-Corte / Overscan)
-    let currentFitMode = localStorage.getItem('aoply_fit_mode') !== null
-      ? parseInt(localStorage.getItem('aoply_fit_mode'), 10)
-      : 1; // Padrão inteligente: 1 (96% Anti-Corte Seguro)
+    // Controle de Encaixe de Tela (Anti-Corte / Overscan) - PADRÃO: 0 (100% TELA CHEIA 1:1)
+    let currentFitMode = 0;
+    try {
+      const savedFit = localStorage.getItem('aoply_fit_mode');
+      if (savedFit !== null && savedFit !== '1') {
+        currentFitMode = parseInt(savedFit, 10);
+      } else {
+        localStorage.setItem('aoply_fit_mode', '0');
+        currentFitMode = 0;
+      }
+    } catch (e) {
+      currentFitMode = 0;
+    }
 
-    function applyScreenFit(mode) {
+    function applyScreenFit(mode, showOsd = true) {
       currentFitMode = mode % 4;
       localStorage.setItem('aoply_fit_mode', currentFitMode);
       const appRoot = document.getElementById('aoply-app-root') || document.getElementById('player-viewport');
@@ -2723,24 +2741,24 @@ let PlayerController = class PlayerController {
       appRoot.classList.remove('overscan-safe-1', 'overscan-safe-2', 'overscan-safe-3');
       if (currentFitMode === 1) {
         appRoot.classList.add('overscan-safe-1');
-        showPlaybackOsd('ENCAIXE TV: 96% (ANTI-CORTE RECOMENDADO)', 'fit', false);
+        if (showOsd) showPlaybackOsd('ENCAIXE TV: 96% (ANTI-CORTE)', 'fit', false);
       } else if (currentFitMode === 2) {
         appRoot.classList.add('overscan-safe-2');
-        showPlaybackOsd('ENCAIXE TV: 92% (BORDA AMPLA)', 'fit', false);
+        if (showOsd) showPlaybackOsd('ENCAIXE TV: 92% (BORDA AMPLA)', 'fit', false);
       } else if (currentFitMode === 3) {
         appRoot.classList.add('overscan-safe-3');
-        showPlaybackOsd('ENCAIXE TV: 88% (MÁXIMO RECUO)', 'fit', false);
+        if (showOsd) showPlaybackOsd('ENCAIXE TV: 88% (MÁXIMO RECUO)', 'fit', false);
       } else {
-        showPlaybackOsd('ENCAIXE TV: 100% (TELA CHEIA 1:1)', 'fit', false);
+        if (showOsd) showPlaybackOsd('ENCAIXE TV: 100% (TELA CHEIA)', 'fit', false);
       }
     }
 
     function cycleScreenFit() {
-      applyScreenFit(currentFitMode + 1);
+      applyScreenFit(currentFitMode + 1, true);
     }
 
     window.addEventListener('DOMContentLoaded', () => {
-      applyScreenFit(currentFitMode);
+      applyScreenFit(currentFitMode, false);
     });
 
     // Ponte de Controle Remoto Nativo (Latência Zero para Android TV)
