@@ -17,11 +17,18 @@ const common_1 = require("@nestjs/common");
 const player_assets_1 = require("./player-assets");
 let PlayerController = class PlayerController {
     getTvPlayer(res) {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
         const html = `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>Smart TV Player | Aoply</title>
   <link rel="icon" type="image/png" href="${player_assets_1.AOPLY_ICON}">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -39,13 +46,18 @@ let PlayerController = class PlayerController {
       user-select: none;
     }
 
-    body {
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
       background-color: #000000;
+    }
+
+    body {
       color: #ffffff;
       font-family: 'Plus Jakarta Sans', sans-serif;
-      overflow: hidden;
-      width: 100vw;
-      height: 100vh;
       position: relative;
     }
 
@@ -69,6 +81,7 @@ let PlayerController = class PlayerController {
     }
 
     #pairing-screen.hidden {
+      display: none !important;
       opacity: 0;
       pointer-events: none;
       transform: scale(1.05);
@@ -390,6 +403,35 @@ let PlayerController = class PlayerController {
       gap: 8px;
     }
 
+    /* Master App Viewport Container com Compensação de Overscan para Smart TVs */
+    #aoply-app-root {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      width: 100% !important;
+      height: 100% !important;
+      overflow: hidden;
+      background: #000;
+      transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+      transform-origin: center center;
+      z-index: 5;
+    }
+
+    /* Modos de Compensação de Overscan (Anti-Corte para TVs com bordas cortadas) */
+    #aoply-app-root.overscan-safe-1 {
+      transform: scale(0.96);
+    }
+
+    #aoply-app-root.overscan-safe-2 {
+      transform: scale(0.92);
+    }
+
+    #aoply-app-root.overscan-safe-3 {
+      transform: scale(0.88);
+    }
+
     /* =========================================
        2. MOTOR DUAL-DECK DO PLAYER DE VÍDEO
        ========================================= */
@@ -397,10 +439,13 @@ let PlayerController = class PlayerController {
       position: absolute;
       top: 0;
       left: 0;
-      width: 100vw;
-      height: 100vh;
+      right: 0;
+      bottom: 0;
+      width: 100% !important;
+      height: 100% !important;
       background: #000;
       z-index: 10;
+      overflow: hidden;
     }
 
     /* Deck A: Local Video Player */
@@ -410,20 +455,22 @@ let PlayerController = class PlayerController {
       left: 0;
       width: 100%;
       height: 100%;
-      object-fit: cover;
+      object-fit: contain;
       background: #000;
       opacity: 0;
-      transition: opacity 0.5s ease-in-out;
+      transition: opacity 0.4s ease-in-out;
       z-index: 20;
     }
 
-    /* Deck B: YouTube Player IFrame com recorte de branding / título / watermark */
+    /* Deck B: YouTube Player IFrame */
     #deck-youtube-container {
       position: absolute;
       top: 0;
       left: 0;
-      width: 100vw;
-      height: 100vh;
+      right: 0;
+      bottom: 0;
+      width: 100% !important;
+      height: 100% !important;
       overflow: hidden !important;
       opacity: 0;
       transition: opacity 0.4s ease-in-out;
@@ -440,14 +487,52 @@ let PlayerController = class PlayerController {
     #deck-youtube-container iframe,
     #yt-player-target {
       position: absolute !important;
-      top: 50% !important;
-      left: 50% !important;
-      width: 100vw !important;
-      height: 100vh !important;
-      transform: translate(-50%, -50%) scale(1.30) !important;
-      transform-origin: center center !important;
-      pointer-events: none !important;
+      top: 0 !important;
+      left: 0 !important;
+      right: 0 !important;
+      bottom: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      margin: 0 !important;
+      padding: 0 !important;
       border: none !important;
+      transform: none !important;
+      pointer-events: none !important;
+    }
+
+    /* Deck C: Imagem Estática / Anúncio Gráfico */
+    #deck-image {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background: #000;
+      opacity: 0;
+      transition: opacity 0.3s ease-in-out;
+      z-index: 18;
+      pointer-events: none;
+    }
+
+    /* Cortina de Transição Limpa (Elimina flash ou congelamento de frame anterior) */
+    #deck-transition-veil {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      width: 100%;
+      height: 100%;
+      background: #000000;
+      z-index: 28;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.22s ease-out;
+    }
+
+    #deck-transition-veil.active {
+      opacity: 1 !important;
     }
 
     .deck-active {
@@ -524,9 +609,7 @@ let PlayerController = class PlayerController {
       position: absolute;
       bottom: 50px;
       left: 32px;
-      background: rgba(10, 10, 14, 0.82);
-      backdrop-filter: blur(28px) saturate(180%);
-      -webkit-backdrop-filter: blur(28px) saturate(180%);
+      background: rgba(10, 10, 14, 0.94);
       border: 1px solid rgba(255, 255, 255, 0.12);
       border-radius: 9999px;
       padding: 7px 22px 7px 9px;
@@ -894,6 +977,7 @@ let PlayerController = class PlayerController {
     }
 
     .empty-screen.hidden {
+      display: none !important;
       opacity: 0 !important;
       visibility: hidden !important;
       pointer-events: none !important;
@@ -1012,9 +1096,7 @@ let PlayerController = class PlayerController {
       align-items: center;
       gap: 14px;
       padding: 24px 38px;
-      background: rgba(12, 14, 22, 0.82);
-      backdrop-filter: blur(32px) saturate(180%);
-      -webkit-backdrop-filter: blur(32px) saturate(180%);
+      background: rgba(12, 14, 22, 0.94);
       border: 1px solid rgba(255, 255, 255, 0.12);
       border-radius: 26px;
       box-shadow: 0 24px 60px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.15);
@@ -1091,8 +1173,10 @@ let PlayerController = class PlayerController {
 
   <div id="offline-banner">MODO OFFLINE ATIVADO - REPRODUZINDO VÍDEOS EM CACHE LOCAL</div>
 
-  <!-- 1. TELA DE PAREAMENTO (Estilo YouTube on TV) -->
-  <div id="pairing-screen">
+  <!-- MASTER APP CONTAINER (Compensação Global de Overscan / Anti-Corte para Smart TV) -->
+  <div id="aoply-app-root">
+    <!-- 1. TELA DE PAREAMENTO (Estilo YouTube on TV) -->
+    <div id="pairing-screen">
     <!-- Efeito Líquido: Bolas degradê dançando suavemente -->
     <div class="liquid-glow-bg" aria-hidden="true">
       <div class="liquid-blob blob-1"></div>
@@ -1157,7 +1241,7 @@ let PlayerController = class PlayerController {
     </div>
   </div>
 
-  <!-- 2. MOTOR DE REPRODUÇÃO DUAL-DECK -->
+  <!-- 2. MOTOR DE REPRODUÇÃO MULTI-DECK -->
   <div id="player-viewport">
     <!-- Deck A: Local Video Player -->
     <video id="deck-local-video" playsinline muted></video>
@@ -1166,6 +1250,12 @@ let PlayerController = class PlayerController {
     <div id="deck-youtube-container">
       <div id="yt-player-target"></div>
     </div>
+
+    <!-- Deck C: Imagem Estática / Anúncio Gráfico -->
+    <img id="deck-image" alt="Publicidade" style="display: none;" />
+
+    <!-- Cortina de Transição Limpa (Elimina flash ou congelamento de frame anterior) -->
+    <div id="deck-transition-veil"></div>
   </div>
 
   <!-- TELA DE PLAYLIST SEM MÚSICA / STANDBY -->
@@ -1211,17 +1301,6 @@ let PlayerController = class PlayerController {
     </div>
   </div>
 
-  <!-- OSD (On-Screen Display) para Comandos do Controle Remoto da TV -->
-  <div id="remote-osd" class="remote-osd hidden">
-    <div class="osd-icon-wrap" id="osd-icon-wrap">
-      <svg id="osd-icon-svg" viewBox="0 0 24 24" fill="currentColor" width="28" height="28">
-        <rect x="6" y="4" width="4" height="16" rx="1.5"></rect>
-        <rect x="14" y="4" width="4" height="16" rx="1.5"></rect>
-      </svg>
-    </div>
-    <div class="osd-text" id="osd-text">PAUSADO</div>
-  </div>
-
   <!-- Toast Minimalista de "Tocando Agora" com Disco CD Giratório da Aoply -->
   <div id="hud-nowplaying-toast" class="hud-toast">
     <div class="toast-cd-spin-wrap" id="toast-cd-wrap">
@@ -1254,6 +1333,18 @@ let PlayerController = class PlayerController {
     <div class="bar-progress-line">
       <div class="bar-progress-fill" id="hud-progress-fill"></div>
     </div>
+  </div>
+  </div> <!-- FECHA #aoply-app-root -->
+
+  <!-- OSD (On-Screen Display) para Comandos do Controle Remoto da TV (Centro Absoluto) -->
+  <div id="remote-osd" class="remote-osd hidden">
+    <div class="osd-icon-wrap" id="osd-icon-wrap">
+      <svg id="osd-icon-svg" viewBox="0 0 24 24" fill="currentColor" width="28" height="28">
+        <rect x="6" y="4" width="4" height="16" rx="1.5"></rect>
+        <rect x="14" y="4" width="4" height="16" rx="1.5"></rect>
+      </svg>
+    </div>
+    <div class="osd-text" id="osd-text">PAUSADO</div>
   </div>
 
   <!-- =========================================
@@ -1294,6 +1385,8 @@ let PlayerController = class PlayerController {
     const countdownTimer = document.getElementById('countdown-timer');
     const deckVideo = document.getElementById('deck-local-video');
     const deckYouTube = document.getElementById('deck-youtube-container');
+    const deckImage = document.getElementById('deck-image');
+    const transitionVeil = document.getElementById('deck-transition-veil');
     const hudBadgeType = document.getElementById('hud-badge-type');
     const hudBadgeText = document.getElementById('hud-badge-text');
     const hudBadgeDot = document.getElementById('hud-badge-dot');
@@ -1302,21 +1395,33 @@ let PlayerController = class PlayerController {
     const offlineBanner = document.getElementById('offline-banner');
     const emptyPlaylistScreen = document.getElementById('empty-playlist-screen');
 
+    // Controle da Cortina de Transição (Garante transição 100% limpa sem congelamento de frame anterior)
+    let veilSafetyTimeout = null;
+    function showTransitionVeil() {
+      if (transitionVeil) transitionVeil.classList.add('active');
+      if (veilSafetyTimeout) clearTimeout(veilSafetyTimeout);
+      veilSafetyTimeout = setTimeout(() => {
+        hideTransitionVeil();
+      }, 3500);
+    }
+
+    function hideTransitionVeil() {
+      if (veilSafetyTimeout) clearTimeout(veilSafetyTimeout);
+      if (transitionVeil) transitionVeil.classList.remove('active');
+    }
+
+    let isAudioUnlocked = false;
     function unlockAudio() {
+      if (isAudioUnlocked) return;
+      isAudioUnlocked = true;
       if (ytPlayer && typeof ytPlayer.unMute === 'function') {
         try {
           ytPlayer.unMute();
           ytPlayer.setVolume(100);
-          if (!userExplicitlyPaused) {
-            ytPlayer.playVideo();
-          }
         } catch (e) {}
       }
       if (deckVideo) {
         deckVideo.muted = false;
-        if (!userExplicitlyPaused && deckVideo.classList.contains('deck-active')) {
-          deckVideo.play().catch(() => {});
-        }
       }
     }
 
@@ -1859,6 +1964,29 @@ let PlayerController = class PlayerController {
       } catch (e) {}
     }
 
+    let hasEnforcedQualityForCurrentVideo = false;
+    function enforceMaxQuality() {
+      try {
+        if (!ytPlayer || typeof ytPlayer.getPlaybackQuality !== 'function') return;
+        const current = ytPlayer.getPlaybackQuality();
+        if (current === 'hd1080') return; // Já está na resolução Full HD perfeita, não reinicia o buffer
+
+        if (typeof ytPlayer.getAvailableQualityLevels === 'function') {
+          const levels = ytPlayer.getAvailableQualityLevels();
+          if (Array.isArray(levels) && levels.length > 0) {
+            // Prioriza hd1080 (Full HD), se não disponível tenta hd720 ou o maior disponível (evita 4k/highres para não sobrecarregar GPU da TV)
+            const target = levels.includes('hd1080') ? 'hd1080' : (levels.includes('hd720') ? 'hd720' : (levels.find(l => l !== 'highres') || levels[0]));
+            if (current && current !== 'unknown' && current !== target && typeof ytPlayer.setPlaybackQuality === 'function') {
+              console.log('Ajustando qualidade YouTube para:', target, '(anterior:', current, ')');
+              ytPlayer.setPlaybackQuality(target);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Erro ao ajustar qualidade do YouTube:', e);
+      }
+    }
+
     // Inicialização do YouTube IFrame API
     window.onYouTubeIframeAPIReady = function() {
       isYouTubeApiReady = true;
@@ -1877,6 +2005,7 @@ let PlayerController = class PlayerController {
           cc_lang_pref: 'none',
           playsinline: 1,
           enablejsapi: 1,
+          vq: 'hd1080',
           origin: window.location.origin
         },
         events: {
@@ -1903,6 +2032,13 @@ let PlayerController = class PlayerController {
 
             if (event.data === YT.PlayerState.PLAYING) {
               disableCaptions();
+              hideTransitionVeil(); // Transição suave para o novo vídeo, eliminando qualquer frame congelado anterior
+              if (!hasEnforcedQualityForCurrentVideo) {
+                hasEnforcedQualityForCurrentVideo = true;
+                setTimeout(() => {
+                  enforceMaxQuality();
+                }, 1200);
+              }
               if (!userExplicitlyPaused) {
                 isPaused = false;
                 updatePlayPauseButton();
@@ -2167,6 +2303,9 @@ let PlayerController = class PlayerController {
         return;
       }
 
+      // Ativa imediatamente a cortina preta de transição para cobrir frames congelados do vídeo anterior
+      showTransitionVeil();
+
       isPaused = false;
       elapsedSeconds = 0;
       updatePlayPauseButton();
@@ -2176,6 +2315,12 @@ let PlayerController = class PlayerController {
       const asset = item.asset;
       itemTotalDuration = item.customDurationSeconds || asset.durationSeconds || 30;
       itemDurationRemaining = itemTotalDuration;
+
+      // Sanitiza URLs de CDN (substitui localhost caso venha de ambiente de desenvolvimento ou seed)
+      let mediaUrl = asset.cdnUrl || '';
+      if (mediaUrl.includes('localhost:3001') || mediaUrl.includes('127.0.0.1:3001')) {
+        mediaUrl = mediaUrl.replace(/https?:\/\/(localhost|127\.0\.0\.1):3001/, window.location.origin);
+      }
 
       // Atualiza o nome da música / mídia no rodapé e no toast
       hudMediaTitle.innerText = asset.name;
@@ -2212,8 +2357,11 @@ let PlayerController = class PlayerController {
 
       if (asset.type === 'YOUTUBE' && !isOfflineMode) {
         // Toca no Deck B (YouTube)
+        if (deckImage) deckImage.style.display = 'none';
         deckVideo.classList.remove('deck-active');
         deckVideo.pause();
+        deckVideo.removeAttribute('src'); // Limpa a GPU do vídeo/comercial anterior
+        deckVideo.load();
 
         if (ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
           userExplicitlyPaused = false;
@@ -2225,19 +2373,11 @@ let PlayerController = class PlayerController {
             ytPlayer.setVolume(100);
           } catch (e) {}
 
+          hasEnforcedQualityForCurrentVideo = false;
           ytPlayer.loadVideoById({
             videoId: asset.externalId,
             suggestedQuality: 'hd1080'
           });
-
-          try {
-            ytPlayer.playVideo();
-          } catch (e) {
-            try {
-              ytPlayer.mute();
-              ytPlayer.playVideo();
-            } catch (err) {}
-          }
 
           disableCaptions();
           deckYouTube.classList.add('deck-active');
@@ -2246,20 +2386,65 @@ let PlayerController = class PlayerController {
           return;
         }
 
-      } else {
-        // Toca no Deck A (Vídeo Local MP4)
+      } else if (asset.type === 'IMAGE') {
+        // Toca no Deck C (Imagem Estática / Anúncio Gráfico)
         deckYouTube.classList.remove('deck-active');
-        if (ytPlayer && ytPlayer.stopVideo) {
-          ytPlayer.stopVideo();
+        if (ytPlayer && typeof ytPlayer.stopVideo === 'function') {
+          try { ytPlayer.stopVideo(); } catch(e) {}
+        }
+        deckVideo.classList.remove('deck-active');
+        deckVideo.pause();
+        deckVideo.removeAttribute('src');
+        deckVideo.load();
+
+        if (deckImage) {
+          deckImage.style.display = 'block';
+          deckImage.src = mediaUrl;
+          deckImage.onload = () => {
+            hideTransitionVeil();
+          };
+          deckImage.onerror = () => {
+            console.warn('Erro ao carregar imagem de anúncio, pulando...');
+            hideTransitionVeil();
+            skipToNext();
+          };
+        } else {
+          hideTransitionVeil();
         }
 
-        deckVideo.src = asset.cdnUrl || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
+      } else {
+        // Toca no Deck A (Vídeo Local MP4 / Comercial em Vídeo)
+        if (deckImage) deckImage.style.display = 'none';
+        deckYouTube.classList.remove('deck-active');
+        if (ytPlayer && typeof ytPlayer.stopVideo === 'function') {
+          try { ytPlayer.stopVideo(); } catch(e) {}
+        }
+
+        const fallbackUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
+        const targetSrc = mediaUrl || fallbackUrl;
+
+        deckVideo.src = targetSrc;
         deckVideo.currentTime = 0;
         deckVideo.muted = false;
+
+        deckVideo.onplaying = () => {
+          hideTransitionVeil();
+        };
+
+        deckVideo.onerror = (e) => {
+          console.warn('Erro ao reproduzir vídeo local/anúncio:', targetSrc, e);
+          hideTransitionVeil();
+          setTimeout(skipToNext, 1200);
+        };
+
         deckVideo.play().catch(e => {
-          console.warn('Autoplay policy aguardando interação, iniciando mutado:', e);
+          console.warn('Autoplay com áudio aguardando interação, iniciando mutado:', e);
           deckVideo.muted = true;
-          deckVideo.play().catch(() => {});
+          deckVideo.play().catch(err => {
+            console.error('Falha crítica ao dar play no vídeo local:', err);
+            hideTransitionVeil();
+            setTimeout(skipToNext, 1200);
+          });
         });
         deckVideo.classList.add('deck-active');
 
@@ -2284,11 +2469,18 @@ let PlayerController = class PlayerController {
 
         if (deckVideo && deckVideo.classList.contains('deck-active') && !deckVideo.paused) {
           elapsedSeconds = deckVideo.currentTime;
+          if (deckVideo.duration && !isNaN(deckVideo.duration) && deckVideo.duration > 0) {
+            itemTotalDuration = deckVideo.duration;
+          }
         } else if (ytPlayer && deckYouTube.classList.contains('deck-active') && typeof ytPlayer.getCurrentTime === 'function') {
           try {
             const ytTime = ytPlayer.getCurrentTime();
             if (typeof ytTime === 'number' && !isNaN(ytTime) && ytTime > 0) {
               elapsedSeconds = ytTime;
+              const ytDur = ytPlayer.getDuration ? ytPlayer.getDuration() : 0;
+              if (ytDur && ytDur > 0) {
+                itemTotalDuration = ytDur;
+              }
             } else {
               elapsedSeconds += 0.5;
             }
@@ -2305,9 +2497,12 @@ let PlayerController = class PlayerController {
           barTimeInfo.innerText = formatTime(elapsedSeconds) + ' / ' + formatTime(itemTotalDuration);
         }
 
-        if (elapsedSeconds >= itemTotalDuration) {
-          clearInterval(playbackInterval);
-          skipToNext();
+        // Se for imagem ou anúncio com tempo fixo, avança quando atingir a duração definida
+        if (asset.type === 'IMAGE' || (isAd && item.customDurationSeconds)) {
+          if (elapsedSeconds >= itemTotalDuration) {
+            clearInterval(playbackInterval);
+            skipToNext();
+          }
         }
       }, 500);
     }
@@ -2427,6 +2622,54 @@ let PlayerController = class PlayerController {
       }
     }
 
+    // Controle de Encaixe de Tela (Anti-Corte / Overscan)
+    let currentFitMode = localStorage.getItem('aoply_fit_mode') !== null
+      ? parseInt(localStorage.getItem('aoply_fit_mode'), 10)
+      : 1; // Padrão inteligente: 1 (96% Anti-Corte Seguro)
+
+    function applyScreenFit(mode) {
+      currentFitMode = mode % 4;
+      localStorage.setItem('aoply_fit_mode', currentFitMode);
+      const appRoot = document.getElementById('aoply-app-root') || document.getElementById('player-viewport');
+      if (!appRoot) return;
+      appRoot.classList.remove('overscan-safe-1', 'overscan-safe-2', 'overscan-safe-3');
+      if (currentFitMode === 1) {
+        appRoot.classList.add('overscan-safe-1');
+        showPlaybackOsd('ENCAIXE TV: 96% (ANTI-CORTE RECOMENDADO)', 'fit', false);
+      } else if (currentFitMode === 2) {
+        appRoot.classList.add('overscan-safe-2');
+        showPlaybackOsd('ENCAIXE TV: 92% (BORDA AMPLA)', 'fit', false);
+      } else if (currentFitMode === 3) {
+        appRoot.classList.add('overscan-safe-3');
+        showPlaybackOsd('ENCAIXE TV: 88% (MÁXIMO RECUO)', 'fit', false);
+      } else {
+        showPlaybackOsd('ENCAIXE TV: 100% (TELA CHEIA 1:1)', 'fit', false);
+      }
+    }
+
+    function cycleScreenFit() {
+      applyScreenFit(currentFitMode + 1);
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      applyScreenFit(currentFitMode);
+    });
+
+    // Ponte de Controle Remoto Nativo (Latência Zero para Android TV)
+    window.AoplyPlayer = {
+      togglePlayPause: function() { togglePlayPause(); },
+      pause: function() { pausePlayback(); },
+      resume: function() { resumePlayback(); },
+      next: function() { skipToNext(); },
+      previous: function() { skipToPrevious(); },
+      cycleScreenFit: function() { cycleScreenFit(); }
+    };
+    window.togglePlayPause = togglePlayPause;
+    window.pausePlayback = pausePlayback;
+    window.resumePlayback = resumePlayback;
+    window.skipToNext = skipToNext;
+    window.skipToPrevious = skipToPrevious;
+
     // Controle do OSD (On-Screen Display)
     function showPlaybackOsd(text, type, keepVisible = false) {
       const osd = document.getElementById('remote-osd');
@@ -2447,6 +2690,8 @@ let PlayerController = class PlayerController {
         iconSvg = '<svg viewBox="0 0 24 24" fill="currentColor" width="28" height="28"><polygon points="5 4 15 12 5 20 5 4"></polygon><line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"></line></svg>';
       } else if (type === 'previous' || type === 'rewind') {
         iconSvg = '<svg viewBox="0 0 24 24" fill="currentColor" width="28" height="28"><polygon points="19 20 9 12 19 4 19 20"></polygon><line x1="5" y1="19" x2="5" y2="5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"></line></svg>';
+      } else if (type === 'fit') {
+        iconSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="28" height="28"><rect x="2" y="3" width="20" height="14" rx="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>';
       }
 
       osdIconWrap.innerHTML = iconSvg;
@@ -2535,14 +2780,11 @@ let PlayerController = class PlayerController {
       const tb = document.getElementById('simulator-toolbar');
       const isToolbarFocused = tb && document.activeElement && tb.contains(document.activeElement);
 
-      // 1. D-Pad CIMA (KeyUp / KEYCODE_DPAD_UP / 19 / 38): Se em modo dev, foca na barra de testes
-      if (key === 'ArrowUp' || code === 'ArrowUp' || keyCode === 38 || keyCode === 19) {
-        if (document.body.classList.contains('dev-mode')) {
-          e.preventDefault();
-          showTvToolbar();
-          moveTvFocus(0);
-          return;
-        }
+      // 1. D-Pad CIMA (KeyUp / 19 / 38 / 'O'): Alterna o Encaixe de Tela Anti-Corte TV
+      if (key === 'ArrowUp' || code === 'ArrowUp' || keyCode === 38 || keyCode === 19 || key === 'o' || key === 'O') {
+        e.preventDefault();
+        cycleScreenFit();
+        return;
       }
 
       // 2. D-Pad BAIXO (KeyDown / KEYCODE_DPAD_DOWN / 20 / 40): Oculta barra e foca vídeo limpo
