@@ -262,7 +262,8 @@ export class MediaService {
     // Calcula checksum SHA-256 do arquivo em disco
     const fileBuffer = fs.readFileSync(file.path);
     const checksum = crypto.createHash('sha256').update(fileBuffer).digest('hex');
-    const cdnUrl = `http://localhost:3001/api/v1/media/stream/${file.filename}`;
+    const baseUrl = process.env.BACKEND_URL || process.env.BASE_URL || 'https://aoply.giroestudo.com.br';
+    const cdnUrl = `${baseUrl}/api/v1/media/stream/${file.filename}`;
 
     const asset = await this.prisma.asset.create({
       data: {

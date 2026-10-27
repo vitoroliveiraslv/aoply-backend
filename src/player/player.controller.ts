@@ -489,6 +489,41 @@ export class PlayerController {
       pointer-events: none !important;
     }
 
+    /* Deck C: Imagem Estática / Anúncio Gráfico */
+    #deck-image {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background: #000;
+      opacity: 0;
+      transition: opacity 0.3s ease-in-out;
+      z-index: 18;
+      pointer-events: none;
+    }
+
+    /* Cortina de Transição Limpa (Elimina flash ou congelamento de frame anterior) */
+    #deck-transition-veil {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      width: 100%;
+      height: 100%;
+      background: #000000;
+      z-index: 28;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.22s ease-out;
+    }
+
+    #deck-transition-veil.active {
+      opacity: 1 !important;
+    }
+
     .deck-active {
       opacity: 1 !important;
     }
@@ -1194,7 +1229,7 @@ export class PlayerController {
     </div>
   </div>
 
-  <!-- 2. MOTOR DE REPRODUÇÃO DUAL-DECK -->
+  <!-- 2. MOTOR DE REPRODUÇÃO MULTI-DECK -->
   <div id="player-viewport">
     <!-- Deck A: Local Video Player -->
     <video id="deck-local-video" playsinline muted></video>
@@ -1203,6 +1238,12 @@ export class PlayerController {
     <div id="deck-youtube-container">
       <div id="yt-player-target"></div>
     </div>
+
+    <!-- Deck C: Imagem Estática / Anúncio Gráfico -->
+    <img id="deck-image" alt="Publicidade" style="display: none;" />
+
+    <!-- Cortina de Transição Limpa (Elimina flash ou congelamento de frame anterior) -->
+    <div id="deck-transition-veil"></div>
   </div>
 
   <!-- TELA DE PLAYLIST SEM MÚSICA / STANDBY -->
@@ -1332,6 +1373,8 @@ export class PlayerController {
     const countdownTimer = document.getElementById('countdown-timer');
     const deckVideo = document.getElementById('deck-local-video');
     const deckYouTube = document.getElementById('deck-youtube-container');
+    const deckImage = document.getElementById('deck-image');
+    const transitionVeil = document.getElementById('deck-transition-veil');
     const hudBadgeType = document.getElementById('hud-badge-type');
     const hudBadgeText = document.getElementById('hud-badge-text');
     const hudBadgeDot = document.getElementById('hud-badge-dot');
@@ -1339,6 +1382,21 @@ export class PlayerController {
     const hudProgressFill = document.getElementById('hud-progress-fill');
     const offlineBanner = document.getElementById('offline-banner');
     const emptyPlaylistScreen = document.getElementById('empty-playlist-screen');
+
+    // Controle da Cortina de Transição (Garante transição 100% limpa sem congelamento de frame anterior)
+    let veilSafetyTimeout = null;
+    function showTransitionVeil() {
+      if (transitionVeil) transitionVeil.classList.add('active');
+      if (veilSafetyTimeout) clearTimeout(veilSafetyTimeout);
+      veilSafetyTimeout = setTimeout(() => {
+        hideTransitionVeil();
+      }, 3500);
+    }
+
+    function hideTransitionVeil() {
+      if (veilSafetyTimeout) clearTimeout(veilSafetyTimeout);
+      if (transitionVeil) transitionVeil.classList.remove('active');
+    }
 
     let isAudioUnlocked = false;
     function unlockAudio() {
@@ -1897,20 +1955,20 @@ export class PlayerController {
     let hasEnforcedQualityForCurrentVideo = false;
     function enforceMaxQuality() {
       try {
-        if (!ytPlayer) return;
+        if (!ytPlayer || typeof ytPlayer.getPlaybackQuality !== 'function') return;
+        const current = ytPlayer.getPlaybackQuality();
+        if (current === 'hd1080') return; // Já está na resolução Full HD perfeita, não reinicia o buffer
+
         if (typeof ytPlayer.getAvailableQualityLevels === 'function') {
           const levels = ytPlayer.getAvailableQualityLevels();
           if (Array.isArray(levels) && levels.length > 0) {
             // Prioriza hd1080 (Full HD), se não disponível tenta hd720 ou o maior disponível (evita 4k/highres para não sobrecarregar GPU da TV)
             const target = levels.includes('hd1080') ? 'hd1080' : (levels.includes('hd720') ? 'hd720' : (levels.find(l => l !== 'highres') || levels[0]));
-            const current = typeof ytPlayer.getPlaybackQuality === 'function' ? ytPlayer.getPlaybackQuality() : null;
-            if (current !== target && typeof ytPlayer.setPlaybackQuality === 'function') {
+            if (current && current !== 'unknown' && current !== target && typeof ytPlayer.setPlaybackQuality === 'function') {
               console.log('Ajustando qualidade YouTube para:', target, '(anterior:', current, ')');
               ytPlayer.setPlaybackQuality(target);
             }
           }
-        } else if (typeof ytPlayer.setPlaybackQuality === 'function') {
-          ytPlayer.setPlaybackQuality('hd1080');
         }
       } catch (e) {
         console.warn('Erro ao ajustar qualidade do YouTube:', e);
@@ -1942,7 +2000,6 @@ export class PlayerController {
           onReady: (event) => {
             console.log('YouTube Player IFrame pronto!');
             disableCaptions();
-            enforceMaxQuality();
             try {
               ytPlayer.unMute();
               ytPlayer.setVolume(100);
@@ -1950,10 +2007,6 @@ export class PlayerController {
           },
           onStateChange: (event) => {
             console.log('YouTube State Change:', event.data);
-
-            if (event.data === YT.PlayerState.BUFFERING) {
-              enforceMaxQuality();
-            }
 
             // Se a tela de pareamento estiver visível ou o aparelho não estiver pareado, força silêncio e parada imediata
             const isPairingVisible = pairingScreen && !pairingScreen.classList.contains('hidden');
@@ -1967,9 +2020,12 @@ export class PlayerController {
 
             if (event.data === YT.PlayerState.PLAYING) {
               disableCaptions();
+              hideTransitionVeil(); // Transição suave para o novo vídeo, eliminando qualquer frame congelado anterior
               if (!hasEnforcedQualityForCurrentVideo) {
                 hasEnforcedQualityForCurrentVideo = true;
-                enforceMaxQuality();
+                setTimeout(() => {
+                  enforceMaxQuality();
+                }, 1200);
               }
               if (!userExplicitlyPaused) {
                 isPaused = false;
@@ -2235,6 +2291,9 @@ export class PlayerController {
         return;
       }
 
+      // Ativa imediatamente a cortina preta de transição para cobrir frames congelados do vídeo anterior
+      showTransitionVeil();
+
       isPaused = false;
       elapsedSeconds = 0;
       updatePlayPauseButton();
@@ -2244,6 +2303,12 @@ export class PlayerController {
       const asset = item.asset;
       itemTotalDuration = item.customDurationSeconds || asset.durationSeconds || 30;
       itemDurationRemaining = itemTotalDuration;
+
+      // Sanitiza URLs de CDN (substitui localhost caso venha de ambiente de desenvolvimento ou seed)
+      let mediaUrl = asset.cdnUrl || '';
+      if (mediaUrl.includes('localhost:3001') || mediaUrl.includes('127.0.0.1:3001')) {
+        mediaUrl = mediaUrl.replace(/https?:\/\/(localhost|127\.0\.0\.1):3001/, window.location.origin);
+      }
 
       // Atualiza o nome da música / mídia no rodapé e no toast
       hudMediaTitle.innerText = asset.name;
@@ -2280,8 +2345,11 @@ export class PlayerController {
 
       if (asset.type === 'YOUTUBE' && !isOfflineMode) {
         // Toca no Deck B (YouTube)
+        if (deckImage) deckImage.style.display = 'none';
         deckVideo.classList.remove('deck-active');
         deckVideo.pause();
+        deckVideo.removeAttribute('src'); // Limpa a GPU do vídeo/comercial anterior
+        deckVideo.load();
 
         if (ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
           userExplicitlyPaused = false;
@@ -2306,20 +2374,65 @@ export class PlayerController {
           return;
         }
 
-      } else {
-        // Toca no Deck A (Vídeo Local MP4)
+      } else if (asset.type === 'IMAGE') {
+        // Toca no Deck C (Imagem Estática / Anúncio Gráfico)
         deckYouTube.classList.remove('deck-active');
-        if (ytPlayer && ytPlayer.stopVideo) {
-          ytPlayer.stopVideo();
+        if (ytPlayer && typeof ytPlayer.stopVideo === 'function') {
+          try { ytPlayer.stopVideo(); } catch(e) {}
+        }
+        deckVideo.classList.remove('deck-active');
+        deckVideo.pause();
+        deckVideo.removeAttribute('src');
+        deckVideo.load();
+
+        if (deckImage) {
+          deckImage.style.display = 'block';
+          deckImage.src = mediaUrl;
+          deckImage.onload = () => {
+            hideTransitionVeil();
+          };
+          deckImage.onerror = () => {
+            console.warn('Erro ao carregar imagem de anúncio, pulando...');
+            hideTransitionVeil();
+            skipToNext();
+          };
+        } else {
+          hideTransitionVeil();
         }
 
-        deckVideo.src = asset.cdnUrl || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
+      } else {
+        // Toca no Deck A (Vídeo Local MP4 / Comercial em Vídeo)
+        if (deckImage) deckImage.style.display = 'none';
+        deckYouTube.classList.remove('deck-active');
+        if (ytPlayer && typeof ytPlayer.stopVideo === 'function') {
+          try { ytPlayer.stopVideo(); } catch(e) {}
+        }
+
+        const fallbackUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
+        const targetSrc = mediaUrl || fallbackUrl;
+
+        deckVideo.src = targetSrc;
         deckVideo.currentTime = 0;
         deckVideo.muted = false;
+
+        deckVideo.onplaying = () => {
+          hideTransitionVeil();
+        };
+
+        deckVideo.onerror = (e) => {
+          console.warn('Erro ao reproduzir vídeo local/anúncio:', targetSrc, e);
+          hideTransitionVeil();
+          setTimeout(skipToNext, 1200);
+        };
+
         deckVideo.play().catch(e => {
-          console.warn('Autoplay policy aguardando interação, iniciando mutado:', e);
+          console.warn('Autoplay com áudio aguardando interação, iniciando mutado:', e);
           deckVideo.muted = true;
-          deckVideo.play().catch(() => {});
+          deckVideo.play().catch(err => {
+            console.error('Falha crítica ao dar play no vídeo local:', err);
+            hideTransitionVeil();
+            setTimeout(skipToNext, 1200);
+          });
         });
         deckVideo.classList.add('deck-active');
 
@@ -2344,11 +2457,18 @@ export class PlayerController {
 
         if (deckVideo && deckVideo.classList.contains('deck-active') && !deckVideo.paused) {
           elapsedSeconds = deckVideo.currentTime;
+          if (deckVideo.duration && !isNaN(deckVideo.duration) && deckVideo.duration > 0) {
+            itemTotalDuration = deckVideo.duration;
+          }
         } else if (ytPlayer && deckYouTube.classList.contains('deck-active') && typeof ytPlayer.getCurrentTime === 'function') {
           try {
             const ytTime = ytPlayer.getCurrentTime();
             if (typeof ytTime === 'number' && !isNaN(ytTime) && ytTime > 0) {
               elapsedSeconds = ytTime;
+              const ytDur = ytPlayer.getDuration ? ytPlayer.getDuration() : 0;
+              if (ytDur && ytDur > 0) {
+                itemTotalDuration = ytDur;
+              }
             } else {
               elapsedSeconds += 0.5;
             }
@@ -2365,9 +2485,12 @@ export class PlayerController {
           barTimeInfo.innerText = formatTime(elapsedSeconds) + ' / ' + formatTime(itemTotalDuration);
         }
 
-        if (elapsedSeconds >= itemTotalDuration) {
-          clearInterval(playbackInterval);
-          skipToNext();
+        // Se for imagem ou anúncio com tempo fixo, avança quando atingir a duração definida
+        if (asset.type === 'IMAGE' || (isAd && item.customDurationSeconds)) {
+          if (elapsedSeconds >= itemTotalDuration) {
+            clearInterval(playbackInterval);
+            skipToNext();
+          }
         }
       }, 500);
     }
