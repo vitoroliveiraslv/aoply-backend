@@ -1625,9 +1625,11 @@ export class PlayerController {
         isPaused = true;
         if (playbackInterval) { clearInterval(playbackInterval); playbackInterval = null; }
         if (deckVideo) {
+          deckVideo.onerror = null;
+          deckVideo.onended = null;
+          deckVideo.onplaying = null;
           try { deckVideo.pause(); } catch(e){}
           try { deckVideo.removeAttribute('src'); } catch(e){}
-          try { if (typeof deckVideo.load === 'function') deckVideo.load(); } catch(e){}
           if (deckVideo.classList) deckVideo.classList.remove('deck-active');
         }
         if (ytPlayer) {
@@ -1770,9 +1772,11 @@ export class PlayerController {
 
       // 2. Interrompe e limpa Deck A (Vídeo Local)
       if (deckVideo) {
+        deckVideo.onerror = null;
+        deckVideo.onended = null;
+        deckVideo.onplaying = null;
         deckVideo.pause();
         deckVideo.removeAttribute('src');
-        deckVideo.load();
         deckVideo.classList.remove('deck-active');
       }
 
@@ -2054,7 +2058,8 @@ export class PlayerController {
           playsinline: 1,
           enablejsapi: 1,
           vq: 'hd1080',
-          origin: window.location.origin
+          origin: (window.location.origin && window.location.origin !== 'null' && !window.location.origin.startsWith('file')) ? window.location.origin : 'https://aoply.giroestudo.com.br',
+          widget_referrer: (window.location.origin && window.location.origin !== 'null' && !window.location.origin.startsWith('file')) ? window.location.origin : 'https://aoply.giroestudo.com.br'
         },
         events: {
           onReady: (event) => {
@@ -2081,12 +2086,6 @@ export class PlayerController {
             if (event.data === YT.PlayerState.PLAYING) {
               disableCaptions();
               hideTransitionVeil(); // Transição suave para o novo vídeo, eliminando qualquer frame congelado anterior
-              if (!hasEnforcedQualityForCurrentVideo) {
-                hasEnforcedQualityForCurrentVideo = true;
-                setTimeout(() => {
-                  enforceMaxQuality();
-                }, 1200);
-              }
               if (!userExplicitlyPaused) {
                 isPaused = false;
                 updatePlayPauseButton();
@@ -2121,14 +2120,21 @@ export class PlayerController {
                 } catch (e) {}
               }
             } else if (event.data === YT.PlayerState.ENDED) {
-              if (!userExplicitlyPaused) {
+              if (!userExplicitlyPaused && deckYouTube && deckYouTube.classList.contains('deck-active')) {
                 skipToNext();
               }
             }
           },
           onError: (event) => {
-            console.warn('YouTube Error Code:', event.data, '- Saltando para a próxima mídia!');
-            skipToNext();
+            console.warn('YouTube Error Code:', event.data, 'no vídeo atual');
+            if (!deckYouTube || !deckYouTube.classList.contains('deck-active')) return;
+            hideTransitionVeil();
+            setTimeout(() => {
+              if (deckYouTube && deckYouTube.classList.contains('deck-active')) {
+                console.warn('Saltando para a próxima mídia após falha no YouTube (Error ' + event.data + ')');
+                skipToNext();
+              }
+            }, 3000);
           }
         }
       });
@@ -2408,10 +2414,16 @@ export class PlayerController {
       if (asset.type === 'YOUTUBE' && !isOfflineMode) {
         // Toca no Deck B (YouTube)
         if (deckImage) deckImage.style.display = 'none';
-        deckVideo.classList.remove('deck-active');
-        deckVideo.pause();
-        deckVideo.removeAttribute('src'); // Limpa a GPU do vídeo/comercial anterior
-        deckVideo.load();
+
+        // Desconecta handlers de erro e eventos do Deck A para evitar disparos falsos
+        if (deckVideo) {
+          deckVideo.onerror = null;
+          deckVideo.onended = null;
+          deckVideo.onplaying = null;
+          deckVideo.pause();
+          deckVideo.removeAttribute('src');
+          deckVideo.classList.remove('deck-active');
+        }
 
         if (ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
           userExplicitlyPaused = false;
@@ -2424,8 +2436,9 @@ export class PlayerController {
           } catch (e) {}
 
           hasEnforcedQualityForCurrentVideo = false;
+          const targetVideoId = (asset.externalId || '').trim();
           ytPlayer.loadVideoById({
-            videoId: asset.externalId,
+            videoId: targetVideoId,
             suggestedQuality: 'hd1080'
           });
 
@@ -2442,10 +2455,15 @@ export class PlayerController {
         if (ytPlayer && typeof ytPlayer.stopVideo === 'function') {
           try { ytPlayer.stopVideo(); } catch(e) {}
         }
-        deckVideo.classList.remove('deck-active');
-        deckVideo.pause();
-        deckVideo.removeAttribute('src');
-        deckVideo.load();
+
+        if (deckVideo) {
+          deckVideo.onerror = null;
+          deckVideo.onended = null;
+          deckVideo.onplaying = null;
+          deckVideo.pause();
+          deckVideo.removeAttribute('src');
+          deckVideo.classList.remove('deck-active');
+        }
 
         if (deckImage) {
           deckImage.style.display = 'block';
@@ -2473,6 +2491,7 @@ export class PlayerController {
         const fallbackUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
         const targetSrc = mediaUrl || fallbackUrl;
 
+        deckVideo.classList.add('deck-active');
         deckVideo.src = targetSrc;
         deckVideo.currentTime = 0;
         deckVideo.muted = false;
@@ -2482,9 +2501,14 @@ export class PlayerController {
         };
 
         deckVideo.onerror = (e) => {
+          if (!deckVideo || !deckVideo.classList.contains('deck-active')) return;
           console.warn('Erro ao reproduzir vídeo local/anúncio:', targetSrc, e);
           hideTransitionVeil();
-          setTimeout(skipToNext, 1200);
+          setTimeout(() => {
+            if (deckVideo && deckVideo.classList.contains('deck-active')) {
+              skipToNext();
+            }
+          }, 3000);
         };
 
         deckVideo.play().catch(e => {
@@ -2493,13 +2517,18 @@ export class PlayerController {
           deckVideo.play().catch(err => {
             console.error('Falha crítica ao dar play no vídeo local:', err);
             hideTransitionVeil();
-            setTimeout(skipToNext, 1200);
+            setTimeout(() => {
+              if (deckVideo && deckVideo.classList.contains('deck-active')) {
+                skipToNext();
+              }
+            }, 3000);
           });
         });
-        deckVideo.classList.add('deck-active');
 
         deckVideo.onended = () => {
-          skipToNext();
+          if (deckVideo && deckVideo.classList.contains('deck-active')) {
+            skipToNext();
+          }
         };
       }
 
@@ -2517,27 +2546,26 @@ export class PlayerController {
       playbackInterval = setInterval(() => {
         if (isPaused) return;
 
-        if (deckVideo && deckVideo.classList.contains('deck-active') && !deckVideo.paused) {
-          elapsedSeconds = deckVideo.currentTime;
-          if (deckVideo.duration && !isNaN(deckVideo.duration) && deckVideo.duration > 0) {
-            itemTotalDuration = deckVideo.duration;
+        if (deckVideo && deckVideo.classList.contains('deck-active')) {
+          if (!deckVideo.paused && deckVideo.currentTime > 0) {
+            elapsedSeconds = deckVideo.currentTime;
+            if (deckVideo.duration && !isNaN(deckVideo.duration) && deckVideo.duration > 0) {
+              itemTotalDuration = deckVideo.duration;
+            }
           }
         } else if (ytPlayer && deckYouTube.classList.contains('deck-active') && typeof ytPlayer.getCurrentTime === 'function') {
           try {
+            const ytState = typeof ytPlayer.getPlayerState === 'function' ? ytPlayer.getPlayerState() : -1;
             const ytTime = ytPlayer.getCurrentTime();
-            if (typeof ytTime === 'number' && !isNaN(ytTime) && ytTime > 0) {
+            if (typeof ytTime === 'number' && !isNaN(ytTime) && ytTime >= 0 && ytState === YT.PlayerState.PLAYING) {
               elapsedSeconds = ytTime;
               const ytDur = ytPlayer.getDuration ? ytPlayer.getDuration() : 0;
               if (ytDur && ytDur > 0) {
                 itemTotalDuration = ytDur;
               }
-            } else {
-              elapsedSeconds += 0.5;
             }
-          } catch (e) {
-            elapsedSeconds += 0.5;
-          }
-        } else {
+          } catch (e) {}
+        } else if (asset.type === 'IMAGE' || (isAd && item.customDurationSeconds)) {
           elapsedSeconds += 0.5;
         }
 
@@ -3018,9 +3046,11 @@ export class PlayerController {
 
       // 4. Silencia e encerra imediatamente Deck A (HTML5) e Deck B (YouTube)
       if (deckVideo) {
+        deckVideo.onerror = null;
+        deckVideo.onended = null;
+        deckVideo.onplaying = null;
         deckVideo.pause();
         deckVideo.removeAttribute('src');
-        deckVideo.load();
         deckVideo.classList.remove('deck-active');
       }
       if (ytPlayer) {
