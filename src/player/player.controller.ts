@@ -94,10 +94,8 @@ export class PlayerController {
     .liquid-blob {
       position: absolute;
       border-radius: 50%;
-      filter: blur(100px);
       opacity: 0.62;
       will-change: transform;
-      mix-blend-mode: screen;
     }
 
     /* Bola 1: tom carmesim vibrante no quadrante direito-superior */
@@ -106,7 +104,7 @@ export class PlayerController {
       height: 720px;
       right: 2%;
       top: 5%;
-      background: radial-gradient(circle at 45% 45%, rgba(255, 0, 39, 0.85) 0%, rgba(255, 40, 75, 0.40) 45%, rgba(180, 0, 30, 0) 70%);
+      background: radial-gradient(circle at 45% 45%, rgba(255, 0, 39, 0.45) 0%, rgba(255, 40, 75, 0.20) 35%, rgba(180, 0, 30, 0) 65%);
       animation: liquidDance1 22s cubic-bezier(0.4, 0, 0.2, 1) infinite alternate;
     }
 
@@ -116,7 +114,7 @@ export class PlayerController {
       height: 780px;
       left: 5%;
       bottom: 0%;
-      background: radial-gradient(circle at 50% 50%, rgba(255, 30, 70, 0.75) 0%, rgba(200, 0, 40, 0.35) 48%, rgba(0, 0, 0, 0) 72%);
+      background: radial-gradient(circle at 50% 50%, rgba(255, 30, 70, 0.40) 0%, rgba(200, 0, 40, 0.18) 38%, rgba(0, 0, 0, 0) 68%);
       animation: liquidDance2 26s cubic-bezier(0.4, 0, 0.2, 1) infinite alternate;
     }
 
@@ -126,7 +124,7 @@ export class PlayerController {
       height: 560px;
       left: 42%;
       top: 25%;
-      background: radial-gradient(circle at 50% 50%, rgba(255, 0, 45, 0.55) 0%, rgba(160, 0, 35, 0.20) 50%, rgba(0, 0, 0, 0) 70%);
+      background: radial-gradient(circle at 50% 50%, rgba(255, 0, 45, 0.30) 0%, rgba(160, 0, 35, 0.10) 40%, rgba(0, 0, 0, 0) 65%);
       animation: liquidDance3 18s ease-in-out infinite alternate;
       opacity: 0.45;
     }
@@ -264,10 +262,8 @@ export class PlayerController {
       gap: 18px;
       min-height: 80px;
       box-sizing: border-box;
-      background: rgba(255, 255, 255, 0.03);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
-      border: 1px solid rgba(255, 255, 255, 0.07);
+      background: rgba(22, 22, 28, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.08);
       border-radius: 14px;
       padding: 16px 20px;
       transition: background 0.2s ease, border-color 0.2s ease;
@@ -559,9 +555,7 @@ export class PlayerController {
       align-items: center;
       gap: 8px;
       padding: 6px 14px;
-      background: rgba(0, 0, 0, 0.45);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
+      background: rgba(15, 15, 18, 0.85);
       border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 9999px;
       font-size: 13px;
@@ -770,9 +764,7 @@ export class PlayerController {
       left: 0;
       width: 100%;
       height: 36px;
-      background: rgba(0, 0, 0, 0.45);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
+      background: rgba(10, 10, 14, 0.90);
       border-top: 1px solid rgba(255, 255, 255, 0.08);
       display: flex;
       justify-content: space-between;
@@ -857,8 +849,7 @@ export class PlayerController {
       top: 20px;
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(24, 24, 27, 0.9);
-      backdrop-filter: blur(16px);
+      background: rgba(24, 24, 27, 0.95);
       border: 1px solid rgba(255, 255, 255, 0.15);
       border-radius: 9999px;
       padding: 6px 16px;
@@ -977,8 +968,7 @@ export class PlayerController {
       position: absolute;
       width: 680px;
       height: 680px;
-      background: radial-gradient(circle, rgba(255, 0, 39, 0.18) 0%, rgba(255, 0, 39, 0.04) 50%, transparent 70%);
-      filter: blur(80px);
+      background: radial-gradient(circle, rgba(255, 0, 39, 0.18) 0%, rgba(255, 0, 39, 0.04) 40%, transparent 65%);
       pointer-events: none;
       animation: ambientFloat 8s ease-in-out infinite alternate;
     }
@@ -1133,8 +1123,7 @@ export class PlayerController {
       top: 80px;
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(220, 38, 38, 0.85);
-      backdrop-filter: blur(16px);
+      background: rgba(220, 38, 38, 0.95);
       border: 1px solid rgba(255, 255, 255, 0.2);
       color: white;
       padding: 8px 20px;
