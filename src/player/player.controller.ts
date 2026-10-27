@@ -71,6 +71,7 @@ export class PlayerController {
     }
 
     #pairing-screen.hidden {
+      display: none !important;
       opacity: 0;
       pointer-events: none;
       transform: scale(1.05);
@@ -966,6 +967,7 @@ export class PlayerController {
     }
 
     .empty-screen.hidden {
+      display: none !important;
       opacity: 0 !important;
       visibility: hidden !important;
       pointer-events: none !important;
