@@ -1634,7 +1634,12 @@ let PlayerController = class PlayerController {
         userExplicitlyPaused = true;
         isPaused = true;
         if (playbackInterval) { clearInterval(playbackInterval); playbackInterval = null; }
-        if (deckVideo) { deckVideo.pause(); deckVideo.removeAttribute('src'); deckVideo.load(); deckVideo.classList.remove('deck-active'); }
+        if (deckVideo) {
+          try { deckVideo.pause(); } catch(e){}
+          try { deckVideo.removeAttribute('src'); } catch(e){}
+          try { if (typeof deckVideo.load === 'function') deckVideo.load(); } catch(e){}
+          if (deckVideo.classList) deckVideo.classList.remove('deck-active');
+        }
         if (ytPlayer) {
           try {
             if (typeof ytPlayer.mute === 'function') ytPlayer.mute();
@@ -2371,8 +2376,10 @@ let PlayerController = class PlayerController {
 
       // Sanitiza URLs de CDN (substitui localhost caso venha de ambiente de desenvolvimento ou seed)
       let mediaUrl = asset.cdnUrl || '';
-      if (mediaUrl.includes('localhost:3001') || mediaUrl.includes('127.0.0.1:3001')) {
-        mediaUrl = mediaUrl.replace(/https?:\/\/(localhost|127\.0\.0\.1):3001/, window.location.origin);
+      if (mediaUrl.indexOf('localhost:3001') !== -1 || mediaUrl.indexOf('127.0.0.1:3001') !== -1) {
+        mediaUrl = mediaUrl.replace('http://localhost:3001', window.location.origin)
+                           .replace('http://127.0.0.1:3001', window.location.origin)
+                           .replace('https://localhost:3001', window.location.origin);
       }
 
       // Atualiza o nome da música / mídia no rodapé e no toast
