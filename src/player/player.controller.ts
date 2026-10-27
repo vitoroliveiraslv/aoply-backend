@@ -58,13 +58,15 @@ export class PlayerController {
       position: absolute;
       top: 0;
       left: 0;
-      width: 100%;
-      height: 100%;
+      width: 100vw;
+      height: 100vh;
+      max-height: 100vh;
       background: #07070a;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      padding: 60px 80px;
+      padding: clamp(18px, 3vh, 36px) clamp(24px, 4vw, 56px);
+      box-sizing: border-box;
       z-index: 100;
       transition: opacity 0.8s ease, transform 0.8s ease;
       overflow: hidden;
@@ -228,20 +230,24 @@ export class PlayerController {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 60px;
-      margin: 40px 0;
+      gap: clamp(20px, 3.5vw, 48px);
+      margin: clamp(8px, 1.5vh, 20px) 0;
+      flex: 1;
+      min-height: 0;
     }
 
     .pairing-instructions {
-      max-width: 580px;
+      flex: 1;
+      max-width: 58%;
+      min-width: 0;
     }
 
     .pairing-title {
-      font-size: 44px;
+      font-size: clamp(22px, 3.6vh, 38px);
       font-weight: 800;
-      line-height: 1.15;
-      letter-spacing: -0.03em;
-      margin-bottom: 28px;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+      margin-bottom: clamp(10px, 1.8vh, 20px);
     }
 
     .pairing-title span {
@@ -253,26 +259,26 @@ export class PlayerController {
     .instruction-steps {
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: clamp(6px, 1.2vh, 12px);
     }
 
     .step-item {
       display: flex;
       align-items: center;
-      gap: 18px;
-      min-height: 80px;
+      gap: clamp(10px, 1.4vw, 16px);
+      min-height: unset;
       box-sizing: border-box;
       background: rgba(22, 22, 28, 0.85);
       border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 14px;
-      padding: 16px 20px;
+      border-radius: 12px;
+      padding: clamp(8px, 1.3vh, 14px) clamp(12px, 1.6vw, 18px);
       transition: background 0.2s ease, border-color 0.2s ease;
     }
 
     .step-num {
-      width: 36px;
-      height: 36px;
-      min-width: 36px;
+      width: clamp(24px, 3vh, 32px);
+      height: clamp(24px, 3vh, 32px);
+      min-width: clamp(24px, 3vh, 32px);
       background: rgba(255, 0, 39, 0.12);
       border: 1.5px solid rgba(255, 0, 39, 0.4);
       border-radius: 50%;
@@ -280,15 +286,15 @@ export class PlayerController {
       align-items: center;
       justify-content: center;
       font-weight: 700;
-      font-size: 16px;
+      font-size: clamp(12px, 1.5vh, 14px);
       color: #FF0027;
       flex-shrink: 0;
     }
 
     .step-text {
-      font-size: 19px;
+      font-size: clamp(13px, 1.6vh, 16px);
       color: #e4e4e7;
-      line-height: 1.45;
+      line-height: 1.35;
       font-weight: 450;
     }
 
@@ -308,58 +314,66 @@ export class PlayerController {
     }
 
     .pairing-code-card {
-      background: transparent;
-      backdrop-filter: none;
-      border: none;
-      box-shadow: none;
-      padding: 20px 30px;
+      background: rgba(18, 18, 24, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 20px;
+      padding: clamp(14px, 2.5vh, 28px) clamp(18px, 2.5vw, 36px);
       text-align: center;
       position: relative;
+      flex: 0 0 auto;
+      min-width: 36%;
+      max-width: 42%;
+      box-sizing: border-box;
     }
 
     .code-label {
-      font-size: 15px;
+      font-size: clamp(11px, 1.4vh, 14px);
       text-transform: uppercase;
-      letter-spacing: 0.12em;
+      letter-spacing: 0.14em;
       color: #a1a1aa;
       font-weight: 700;
-      margin-bottom: 16px;
+      margin-bottom: clamp(8px, 1.2vh, 14px);
     }
 
     .big-code-display {
-      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Plus Jakarta Sans", "Inter", sans-serif;
+      font-family: ui-monospace, SFMono-Regular, "SF Pro Display", Menlo, Consolas, monospace;
       font-variant-numeric: tabular-nums;
       font-feature-settings: "tnum";
-      font-size: 72px;
+      font-size: clamp(34px, 4.8vw, 56px);
       font-weight: 800;
-      letter-spacing: 0.08em;
+      letter-spacing: 0.12em;
+      white-space: nowrap;
       color: #ffffff;
       background: linear-gradient(135deg, #ffffff 40%, #cbd5e1 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       text-shadow: 0 0 30px rgba(255, 255, 255, 0.2);
-      margin-bottom: 20px;
+      margin-bottom: clamp(8px, 1.4vh, 16px);
+      line-height: 1.1;
+      display: inline-block;
+      max-width: 100%;
     }
 
     .code-expiry {
       display: inline-flex;
       align-items: center;
-      gap: 8px;
-      font-size: 14px;
+      gap: 6px;
+      font-size: clamp(11px, 1.3vh, 13px);
       color: #a1a1aa;
-      background: rgba(0, 0, 0, 0.4);
-      padding: 6px 16px;
+      background: rgba(0, 0, 0, 0.5);
+      padding: 4px 14px;
       border-radius: 9999px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
     }
 
     .pairing-waiting-box {
-      margin-top: 20px;
+      margin-top: clamp(8px, 1.4vh, 16px);
       display: flex;
       justify-content: center;
     }
 
     .pairing-waiting-text {
-      font-size: 14px;
+      font-size: clamp(11px, 1.3vh, 13px);
       font-weight: 500;
       color: #94a3b8;
       letter-spacing: -0.01em;
@@ -372,10 +386,10 @@ export class PlayerController {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      border-top: 1px solid rgba(255, 255, 255, 0.08);
-      padding-top: 24px;
-      font-size: 14px;
+      font-size: clamp(10px, 1.3vh, 12px);
       color: #71717a;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      padding-top: clamp(6px, 1vh, 12px);
     }
 
     .device-meta {
@@ -1198,7 +1212,7 @@ export class PlayerController {
 
       <div class="pairing-code-card">
         <div class="code-label">Código de Conexão</div>
-        <div class="big-code-display" id="display-pairing-code">--- · ---</div>
+        <div class="big-code-display" id="display-pairing-code">CONECTANDO...</div>
         <div class="code-expiry">
           Expira em <span id="countdown-timer">10:00</span>
         </div>
@@ -1343,6 +1357,24 @@ export class PlayerController {
       banner.textContent = 'Erro JavaScript: ' + msg + ' (L' + lineNo + ')';
       return false;
     };
+
+    // Relógio em tempo real imediato (executa em 0ms no topo do script)
+    function updateClock() {
+      try {
+        const now = new Date();
+        const timeStr = now.toTimeString().split(' ')[0];
+        const hoursMins = timeStr.slice(0, 5);
+        const pairingClock = document.getElementById('pairing-clock');
+        const hudClock = document.getElementById('hud-clock');
+        const hudClockBottom = document.getElementById('hud-clock-bottom');
+        if (pairingClock) pairingClock.innerText = timeStr;
+        if (hudClock) hudClock.innerText = hoursMins;
+        if (hudClockBottom) hudClockBottom.innerText = hoursMins;
+      } catch (e) {}
+    }
+    updateClock();
+    setInterval(updateClock, 1000);
+
     // Ativa barra do simulador SOMENTE se explicitamente requisitada em ambiente de testes (?dev=true, ?simulator=true ou #dev)
     try {
       const urlParams = new URLSearchParams(window.location.search);
@@ -1464,90 +1496,90 @@ export class PlayerController {
       }, 2500);
     });
 
-    // Inicialização do WebSocket (Socket.io)
-    const socket = io(window.location.origin);
-
-    socket.on('connect', () => {
-      const statusEl = document.getElementById('socket-status');
-      if (statusEl) {
-        statusEl.innerHTML = '● WebSocket Conectado';
-        statusEl.style.color = '#34d399';
+    // Inicialização do WebSocket (Socket.io) com fallback seguro
+    let socket = null;
+    try {
+      if (typeof io !== 'undefined') {
+        socket = io(window.location.origin, {
+          transports: ['websocket', 'polling'],
+          timeout: 10000,
+          reconnectionAttempts: 50
+        });
       }
-      if (currentDeviceId && currentDeviceToken) {
-        socket.emit('device:register', { deviceId: currentDeviceId, token: currentDeviceToken });
-        startHeartbeatLoop();
-      }
-    });
-
-    socket.on('disconnect', () => {
-      const statusEl = document.getElementById('socket-status');
-      if (statusEl) {
-        statusEl.innerHTML = '○ Desconectado';
-        statusEl.style.color = '#ef4444';
-      }
-    });
-
-    // Evento disparado pelo Backend quando a TV é pareada pelo painel
-    socket.on('device:paired', (data) => {
-      console.log('Evento device:paired recebido!', data);
-      currentDeviceId = data.deviceId;
-      currentDeviceToken = data.deviceToken;
-      localStorage.setItem('tv_device_id', currentDeviceId);
-      localStorage.setItem('tv_device_token', currentDeviceToken);
-      socket.emit('device:register', { deviceId: currentDeviceId, token: currentDeviceToken });
-      userExplicitlyPaused = false;
-      isPaused = false;
-      unlockAudio();
-      startHeartbeatLoop();
-      transitionToPlayback();
-    });
-
-    // Evento disparado pelo Backend quando a playlist é atualizada remotamente
-    socket.on('player:sync', (data) => {
-      console.log('Evento player:sync recebido do CMS:', data);
-      handleRemoteSync(data);
-    });
-
-    // Evento para capturar screenshot em tempo real solicitado pelo painel
-    socket.on('player:capture_screenshot', () => {
-      console.log('Comando de screenshot recebido do painel!');
-      captureScreenAndSend();
-    });
-
-    // Comandos remotos recebidos do CMS (reload, unpair, etc.)
-    socket.on('player:command', (data) => {
-      console.log('Comando remoto recebido do CMS:', data);
-      if (data && data.command === 'player:reload') {
-        location.reload();
-      } else if (data && data.command === 'player:unpair') {
-        userExplicitlyPaused = true;
-        isPaused = true;
-        if (playbackInterval) clearInterval(playbackInterval);
-        if (heartbeatTimer) clearInterval(heartbeatTimer);
-        currentQueue = [];
-        if (deckVideo) { deckVideo.pause(); deckVideo.removeAttribute('src'); }
-        if (ytPlayer) { try { ytPlayer.mute(); ytPlayer.stopVideo(); } catch(e){} }
-        localStorage.removeItem('tv_device_id');
-        localStorage.removeItem('tv_device_token');
-        currentDeviceId = null;
-        currentDeviceToken = null;
-        location.reload();
-      }
-    });
-
-    // Relógio em tempo real
-    function updateClock() {
-      const now = new Date();
-      const timeStr = now.toTimeString().split(' ')[0];
-      const hoursMins = timeStr.slice(0, 5);
-      const pairingClock = document.getElementById('pairing-clock');
-      const hudClock = document.getElementById('hud-clock');
-      if (pairingClock) pairingClock.innerText = timeStr;
-      if (hudClock) hudClock.innerText = hoursMins;
-      if (hudClockBottom) hudClockBottom.innerText = hoursMins;
+    } catch(e) {
+      console.warn('Falha ao inicializar socket.io:', e);
     }
-    setInterval(updateClock, 1000);
-    updateClock();
+
+    if (socket) {
+      socket.on('connect', () => {
+        const statusEl = document.getElementById('socket-status');
+        if (statusEl) {
+          statusEl.innerHTML = '● WebSocket Conectado';
+          statusEl.style.color = '#34d399';
+        }
+        if (currentDeviceId && currentDeviceToken) {
+          socket.emit('device:register', { deviceId: currentDeviceId, token: currentDeviceToken });
+          startHeartbeatLoop();
+        }
+      });
+
+      socket.on('disconnect', () => {
+        const statusEl = document.getElementById('socket-status');
+        if (statusEl) {
+          statusEl.innerHTML = '○ Desconectado';
+          statusEl.style.color = '#ef4444';
+        }
+      });
+
+      // Evento disparado pelo Backend quando a TV é pareada pelo painel
+      socket.on('device:paired', (data) => {
+        console.log('Evento device:paired recebido!', data);
+        currentDeviceId = data.deviceId;
+        currentDeviceToken = data.deviceToken;
+        localStorage.setItem('tv_device_id', currentDeviceId);
+        localStorage.setItem('tv_device_token', currentDeviceToken);
+        socket.emit('device:register', { deviceId: currentDeviceId, token: currentDeviceToken });
+        userExplicitlyPaused = false;
+        isPaused = false;
+        unlockAudio();
+        startHeartbeatLoop();
+        transitionToPlayback();
+      });
+
+      // Evento disparado pelo Backend quando a playlist é atualizada remotamente
+      socket.on('player:sync', (data) => {
+        console.log('Evento player:sync recebido do CMS:', data);
+        handleRemoteSync(data);
+      });
+
+      // Evento para capturar screenshot em tempo real solicitado pelo painel
+      socket.on('player:capture_screenshot', () => {
+        console.log('Comando de screenshot recebido do painel!');
+        captureScreenAndSend();
+      });
+
+      // Comandos remotos recebidos do CMS (reload, unpair, etc.)
+      socket.on('player:command', (data) => {
+        console.log('Comando remoto recebido do CMS:', data);
+        if (data && data.command === 'player:reload') {
+          location.reload();
+        } else if (data && data.command === 'player:unpair') {
+          userExplicitlyPaused = true;
+          isPaused = true;
+          if (playbackInterval) clearInterval(playbackInterval);
+          if (heartbeatTimer) clearInterval(heartbeatTimer);
+          currentQueue = [];
+          if (deckVideo) { deckVideo.pause(); deckVideo.removeAttribute('src'); }
+          if (ytPlayer) { try { ytPlayer.mute(); ytPlayer.stopVideo(); } catch(e){} }
+          localStorage.removeItem('tv_device_id');
+          localStorage.removeItem('tv_device_token');
+          currentDeviceId = null;
+          currentDeviceToken = null;
+          location.reload();
+        }
+      });
+    }
+
 
     // Heartbeat contínuo de status para manter a TV sempre com status "Ao Vivo" no CMS
     let heartbeatTimer = null;
@@ -1614,27 +1646,42 @@ export class PlayerController {
       }
 
       pairingScreen.classList.remove('hidden');
+      if (displayPairingCode && (displayPairingCode.innerText === '--- · ---' || !displayPairingCode.innerText)) {
+        displayPairingCode.innerText = 'CONECTANDO...';
+        displayPairingCode.style.fontSize = 'clamp(20px, 2.8vw, 32px)';
+      }
       try {
         const res = await fetch('/api/v1/devices/request-pairing', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            osName: 'Android TV (Smart Player)',
-            osVersion: '12.0',
-            appVersion: '1.0.0',
-            resolution: '1920x1080'
+            osName: 'Android TV',
+            osVersion: '9.0+',
+            appVersion: '1.1.3',
+            resolution: (window.innerWidth || 1920) + 'x' + (window.innerHeight || 1080)
           })
         });
+        if (!res.ok) throw new Error('Status ' + res.status);
         const data = await res.json();
         currentDeviceId = data.deviceId;
-        displayPairingCode.innerText = data.formattedCode;
+        if (displayPairingCode) {
+          displayPairingCode.style.fontSize = '';
+          displayPairingCode.innerText = data.formattedCode || data.pairingCode;
+        }
 
         // Entra na sala do WebSocket para esperar o evento device:paired e comandos remotos
-        socket.emit('pairing:join', { pairingCode: data.pairingCode });
-        socket.emit('device:register', { deviceId: currentDeviceId });
+        if (socket) {
+          socket.emit('pairing:join', { pairingCode: data.pairingCode });
+          socket.emit('device:register', { deviceId: currentDeviceId });
+        }
 
         // Contador regressivo de 10 min
         let timeLeft = data.expiresInSeconds || 600;
+        if (countdownTimer) {
+          const mins = Math.floor(timeLeft / 60).toString().padStart(2, '0');
+          const secs = (timeLeft % 60).toString().padStart(2, '0');
+          countdownTimer.innerText = mins + ':' + secs;
+        }
         const timer = setInterval(() => {
           timeLeft--;
           if (timeLeft <= 0) {
@@ -1644,11 +1691,15 @@ export class PlayerController {
           }
           const mins = Math.floor(timeLeft / 60).toString().padStart(2, '0');
           const secs = (timeLeft % 60).toString().padStart(2, '0');
-          countdownTimer.innerText = mins + ':' + secs;
+          if (countdownTimer) countdownTimer.innerText = mins + ':' + secs;
         }, 1000);
       } catch (err) {
-        displayPairingCode.innerText = 'ERRO REDE';
         console.error('Falha ao solicitar pareamento:', err);
+        if (displayPairingCode) {
+          displayPairingCode.innerText = 'CONECTANDO...';
+          displayPairingCode.style.fontSize = 'clamp(20px, 2.8vw, 32px)';
+        }
+        setTimeout(initPairing, 3000);
       }
 
       // Atualiza URL do painel e IP na tela da TV com base no host de rede
