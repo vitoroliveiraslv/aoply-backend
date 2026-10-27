@@ -31,6 +31,11 @@ let PlayerController = class PlayerController {
   <meta http-equiv="Expires" content="0">
   <title>Smart TV Player | Aoply</title>
   <link rel="icon" type="image/png" href="${player_assets_1.AOPLY_ICON}">
+  <link rel="preconnect" href="https://www.youtube.com">
+  <link rel="preconnect" href="https://www.google.com">
+  <link rel="preconnect" href="https://i.ytimg.com">
+  <link rel="dns-prefetch" href="https://www.youtube.com">
+  <link rel="dns-prefetch" href="https://i.ytimg.com">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -1420,6 +1425,7 @@ let PlayerController = class PlayerController {
     let itemTotalDuration = 0;
     let youtubeCount = 0;
     const YOUTUBE_AD_FREQUENCY = 3; // A cada 3 YouTube, rodar 1 anúncio
+    let playbackStartWatchdog = null;
 
     // Elementos DOM
     const pairingScreen = document.getElementById('pairing-screen');
@@ -1804,6 +1810,10 @@ let PlayerController = class PlayerController {
         clearInterval(playbackInterval);
         playbackInterval = null;
       }
+      if (playbackStartWatchdog) {
+        clearTimeout(playbackStartWatchdog);
+        playbackStartWatchdog = null;
+      }
       if (toastTimeout) {
         clearTimeout(toastTimeout);
         toastTimeout = null;
@@ -2108,6 +2118,11 @@ let PlayerController = class PlayerController {
               ytPlayer.unMute();
               ytPlayer.setVolume(100);
             } catch (e) {}
+            // Se já houver fila aguardando reprodução, inicia instantaneamente!
+            if (currentQueue && currentQueue.length > 0 && !hasStartedCurrentVideo && !userExplicitlyPaused) {
+              console.log('Disparando reprodução imediata assim que YouTube ficou pronto!');
+              playCurrentItem();
+            }
           },
           onStateChange: (event) => {
             console.log('YouTube State Change:', event.data);
@@ -2124,6 +2139,7 @@ let PlayerController = class PlayerController {
 
             if (event.data === YT.PlayerState.PLAYING) {
               hasStartedCurrentVideo = true;
+              if (playbackStartWatchdog) { clearTimeout(playbackStartWatchdog); playbackStartWatchdog = null; }
               if (deckYouTube) deckYouTube.classList.add('deck-active');
               disableCaptions();
               hideTransitionVeil(); // Transição suave para o novo vídeo, eliminando o skeleton cinza
@@ -2135,9 +2151,6 @@ let PlayerController = class PlayerController {
                     ytPlayer.unMute();
                     ytPlayer.setVolume(100);
                   }
-                  if (typeof ytPlayer.setPlaybackQuality === 'function') {
-                    ytPlayer.setPlaybackQuality('hd720');
-                  }
                 } catch (e) {}
               }
             } else if (event.data === YT.PlayerState.PAUSED) {
@@ -2145,9 +2158,11 @@ let PlayerController = class PlayerController {
                 isPaused = true;
                 updatePlayPauseButton();
               } else if (!hasStartedCurrentVideo) {
-                // Autoplay bloqueado pelo navegador no início do vídeo: tenta desbloquear
-                console.warn('Autoplay bloqueado pelo navegador no início do vídeo. Retomando...');
+                // Autoplay bloqueado pelo navegador no início do vídeo: força play imediato!
+                console.warn('Autoplay pausado no início do vídeo. Retomando playVideo()...');
                 try {
+                  ytPlayer.unMute();
+                  ytPlayer.setVolume(100);
                   ytPlayer.playVideo();
                 } catch (e) {
                   try {
@@ -2156,16 +2171,17 @@ let PlayerController = class PlayerController {
                   } catch (err) {}
                 }
               } else {
-                // Vídeo já estava em reprodução: NÃO forçar playVideo() imediatamente!
-                // Permite que o buffer de rede da Smart TV carregue de forma estável sem travar o player.
                 console.log('Vídeo aguardando estabilização do buffer de rede...');
               }
             } else if (event.data === YT.PlayerState.BUFFERING) {
               console.log('YouTube bufferizando mídia para reprodução estável...');
-            } else if (event.data === YT.PlayerState.CUED) {
-              // Vídeo pronto: dá play imediatamente se não pausado pelo usuário
+              if (deckYouTube) deckYouTube.classList.add('deck-active');
+            } else if (event.data === YT.PlayerState.CUED || event.data === -1) {
+              // Vídeo pronto ou inicializando: dá play imediatamente se não pausado pelo usuário
               if (!userExplicitlyPaused && typeof ytPlayer.playVideo === 'function') {
                 try {
+                  ytPlayer.unMute();
+                  ytPlayer.setVolume(100);
                   ytPlayer.playVideo();
                 } catch (e) {}
               }
@@ -2494,10 +2510,37 @@ let PlayerController = class PlayerController {
             suggestedQuality: 'hd720'
           });
 
+          // Força play imediato sem aguardar decisão do WebView
+          try {
+            ytPlayer.playVideo();
+          } catch (e) {}
+
           disableCaptions();
-          // deckYouTube só recebe deck-active quando o evento PLAYING disparar!
+
+          // Watchdog de 6 segundos para garantir que a TV NUNCA fique travada na tela preta
+          if (playbackStartWatchdog) clearTimeout(playbackStartWatchdog);
+          playbackStartWatchdog = setTimeout(() => {
+            if (!hasStartedCurrentVideo && !userExplicitlyPaused) {
+              console.warn('Vídeo demorou mais de 6s para iniciar. Tentando destravamento forçado...');
+              try {
+                if (ytPlayer && typeof ytPlayer.playVideo === 'function') {
+                  ytPlayer.unMute();
+                  ytPlayer.setVolume(100);
+                  ytPlayer.playVideo();
+                }
+              } catch (e) {}
+              setTimeout(() => {
+                if (!hasStartedCurrentVideo && !userExplicitlyPaused) {
+                  console.warn('Vídeo travado na TV. Pulando para a próxima faixa imediatamente.');
+                  hideTransitionVeil();
+                  skipToNext();
+                }
+              }, 2000);
+            }
+          }, 6000);
+
         } else {
-          setTimeout(playCurrentItem, 300);
+          setTimeout(playCurrentItem, 150);
           return;
         }
 
@@ -2645,6 +2688,7 @@ let PlayerController = class PlayerController {
     // Passar para a próxima mídia (Controle Remoto: Seta Direita / MediaNext / Avançar)
     function skipToNext() {
       if (playbackInterval) clearInterval(playbackInterval);
+      if (playbackStartWatchdog) { clearTimeout(playbackStartWatchdog); playbackStartWatchdog = null; }
       if (!currentQueue || currentQueue.length === 0) {
         stopPlaybackAndShowEmptyState('Playlist sem música');
         return;
@@ -2662,6 +2706,7 @@ let PlayerController = class PlayerController {
     // Retroceder / Voltar mídia (Controle Remoto: Seta Esquerda / MediaPrev / Retroceder)
     function skipToPrevious() {
       if (playbackInterval) clearInterval(playbackInterval);
+      if (playbackStartWatchdog) { clearTimeout(playbackStartWatchdog); playbackStartWatchdog = null; }
       if (!currentQueue || currentQueue.length === 0) {
         stopPlaybackAndShowEmptyState('Playlist sem música');
         return;
