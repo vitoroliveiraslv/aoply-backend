@@ -497,12 +497,10 @@ let PlayerController = class PlayerController {
     #deck-youtube-container iframe,
     #yt-player-target {
       position: absolute !important;
-      top: 0 !important;
-      left: 0 !important;
-      right: 0 !important;
-      bottom: 0 !important;
-      width: 100% !important;
-      height: 100% !important;
+      top: -3.5% !important;
+      left: -3.5% !important;
+      width: 107% !important;
+      height: 107% !important;
       margin: 0 !important;
       padding: 0 !important;
       border: none !important;
@@ -797,6 +795,15 @@ let PlayerController = class PlayerController {
       box-sizing: border-box;
       z-index: 35;
       font-family: 'Plus Jakarta Sans', sans-serif;
+      transform: translateY(0);
+      opacity: 1;
+      transition: transform 0.55s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.55s ease;
+      pointer-events: none;
+    }
+
+    .hud-bottom-bar.hidden {
+      transform: translateY(100%);
+      opacity: 0;
     }
 
     .bar-left {
@@ -1429,6 +1436,27 @@ let PlayerController = class PlayerController {
     const hudProgressFill = document.getElementById('hud-progress-fill');
     const offlineBanner = document.getElementById('offline-banner');
     const emptyPlaylistScreen = document.getElementById('empty-playlist-screen');
+    const hudBottomBar = document.getElementById('hud-bottom-bar');
+    let bottomBarTimeout = null;
+
+    function showBottomBarTemporarily(durationMs = 3500) {
+      if (!hudBottomBar) return;
+      hudBottomBar.classList.remove('hidden');
+      if (bottomBarTimeout) clearTimeout(bottomBarTimeout);
+      if (isPaused) return; // Se pausado pelo usuário, mantém a barra visível para indicar pausa
+      bottomBarTimeout = setTimeout(() => {
+        if (!isPaused && hudBottomBar) {
+          hudBottomBar.classList.add('hidden');
+        }
+      }, durationMs);
+    }
+
+    function hideBottomBar() {
+      if (bottomBarTimeout) clearTimeout(bottomBarTimeout);
+      if (hudBottomBar && !isPaused) {
+        hudBottomBar.classList.add('hidden');
+      }
+    }
 
     // Controle da Cortina de Transição (Garante transição 100% limpa sem congelamento de frame anterior)
     let veilSafetyTimeout = null;
@@ -1437,7 +1465,7 @@ let PlayerController = class PlayerController {
       if (veilSafetyTimeout) clearTimeout(veilSafetyTimeout);
       veilSafetyTimeout = setTimeout(() => {
         hideTransitionVeil();
-      }, 3500);
+      }, 4000);
     }
 
     function hideTransitionVeil() {
@@ -2096,8 +2124,9 @@ let PlayerController = class PlayerController {
 
             if (event.data === YT.PlayerState.PLAYING) {
               hasStartedCurrentVideo = true;
+              if (deckYouTube) deckYouTube.classList.add('deck-active');
               disableCaptions();
-              hideTransitionVeil(); // Transição suave para o novo vídeo, eliminando qualquer frame congelado anterior
+              hideTransitionVeil(); // Transição suave para o novo vídeo, eliminando o skeleton cinza
               if (!userExplicitlyPaused) {
                 isPaused = false;
                 updatePlayPauseButton();
@@ -2138,21 +2167,20 @@ let PlayerController = class PlayerController {
                 } catch (e) {}
               }
             } else if (event.data === YT.PlayerState.ENDED) {
-              if (!userExplicitlyPaused && deckYouTube && deckYouTube.classList.contains('deck-active')) {
+              if (!userExplicitlyPaused) {
+                showTransitionVeil();
+                if (deckYouTube) deckYouTube.classList.remove('deck-active');
                 skipToNext();
               }
             }
           },
           onError: (event) => {
             console.warn('YouTube Error Code:', event.data, 'no vídeo atual');
-            if (!deckYouTube || !deckYouTube.classList.contains('deck-active')) return;
             hideTransitionVeil();
             setTimeout(() => {
-              if (deckYouTube && deckYouTube.classList.contains('deck-active')) {
-                console.warn('Saltando para a próxima mídia após falha no YouTube (Error ' + event.data + ')');
-                skipToNext();
-              }
-            }, 3000);
+              console.warn('Saltando para a próxima mídia após falha no YouTube (Error ' + event.data + ')');
+              skipToNext();
+            }, 2500);
           }
         }
       });
@@ -2401,7 +2429,8 @@ let PlayerController = class PlayerController {
       if (toastTitle) toastTitle.innerText = asset.name;
       hudProgressFill.style.width = '0%';
 
-      // Dispara o toast minimalista que surge suavemente e recolhe após 6s
+      // Dispara o toast e a barra inferior juntos nos primeiros 3.5 segundos da nova música e recolhe
+      showBottomBarTemporarily(3500);
       if (hudNowplayingToast) {
         hudNowplayingToast.classList.remove('paused');
         const toastCdDisc = document.getElementById('toast-cd-disc');
@@ -2411,7 +2440,7 @@ let PlayerController = class PlayerController {
         if (toastTimeout) clearTimeout(toastTimeout);
         toastTimeout = setTimeout(() => {
           hudNowplayingToast.classList.remove('visible');
-        }, 6000);
+        }, 3500);
       }
 
       const isAd = item.category === 'COMMERCIAL_AD';
@@ -2431,6 +2460,7 @@ let PlayerController = class PlayerController {
 
       if (asset.type === 'YOUTUBE' && !isOfflineMode) {
         // Toca no Deck B (YouTube)
+        showTransitionVeil(); // Mantém o véu preto cobrindo o pré-carregamento / skeleton cinza
         if (deckImage) deckImage.style.display = 'none';
 
         // Desconecta handlers de erro e eventos do Deck A para evitar disparos falsos
@@ -2462,7 +2492,7 @@ let PlayerController = class PlayerController {
           });
 
           disableCaptions();
-          deckYouTube.classList.add('deck-active');
+          // deckYouTube só recebe deck-active quando o evento PLAYING disparar!
         } else {
           setTimeout(playCurrentItem, 300);
           return;
@@ -2600,6 +2630,11 @@ let PlayerController = class PlayerController {
             clearInterval(playbackInterval);
             skipToNext();
           }
+        } else if (asset.type === 'YOUTUBE' && itemTotalDuration > 10 && elapsedSeconds >= (itemTotalDuration - 1.2)) {
+          // Transição suave antecipada para próxima faixa antes que o YouTube exiba cards/recomendações no final
+          console.log('Mídia do YouTube finalizada. Iniciando transição limpa para a próxima faixa...');
+          clearInterval(playbackInterval);
+          skipToNext();
         }
       }, 500);
     }
@@ -2611,6 +2646,9 @@ let PlayerController = class PlayerController {
         stopPlaybackAndShowEmptyState('Playlist sem música');
         return;
       }
+      showTransitionVeil();
+      showBottomBarTemporarily(3500);
+      if (deckYouTube) deckYouTube.classList.remove('deck-active');
       currentItemIndex++;
       userExplicitlyPaused = false;
       isPaused = false;
@@ -2631,6 +2669,7 @@ let PlayerController = class PlayerController {
         elapsedSeconds = 0;
         userExplicitlyPaused = false;
         isPaused = false;
+        showBottomBarTemporarily(3500);
         if (deckVideo && deckVideo.classList.contains('deck-active')) {
           deckVideo.currentTime = 0;
           deckVideo.play().catch(() => {});
@@ -2647,6 +2686,9 @@ let PlayerController = class PlayerController {
       }
 
       // Se está no início (<= 4s), retrocede para a faixa anterior
+      showTransitionVeil();
+      showBottomBarTemporarily(3500);
+      if (deckYouTube) deckYouTube.classList.remove('deck-active');
       currentItemIndex = (currentItemIndex - 1 + currentQueue.length) % currentQueue.length;
       userExplicitlyPaused = false;
       isPaused = false;
@@ -2669,6 +2711,9 @@ let PlayerController = class PlayerController {
       userExplicitlyPaused = true;
       isPaused = true;
 
+      if (hudBottomBar) hudBottomBar.classList.remove('hidden');
+      if (bottomBarTimeout) clearTimeout(bottomBarTimeout);
+
       if (deckVideo && deckVideo.classList.contains('deck-active')) {
         deckVideo.pause();
       }
@@ -2690,6 +2735,7 @@ let PlayerController = class PlayerController {
       userExplicitlyPaused = false;
       isPaused = false;
 
+      showBottomBarTemporarily(3500);
       unlockAudio();
 
       if (deckVideo && deckVideo.classList.contains('deck-active')) {
@@ -2763,11 +2809,12 @@ let PlayerController = class PlayerController {
 
     // Ponte de Controle Remoto Nativo (Latência Zero para Android TV)
     window.AoplyPlayer = {
-      togglePlayPause: function() { togglePlayPause(); },
+      togglePlayPause: function() { showBottomBarTemporarily(3500); togglePlayPause(); },
       pause: function() { pausePlayback(); },
       resume: function() { resumePlayback(); },
-      next: function() { skipToNext(); },
-      previous: function() { skipToPrevious(); },
+      next: function() { showBottomBarTemporarily(3500); skipToNext(); },
+      previous: function() { showBottomBarTemporarily(3500); skipToPrevious(); },
+      wakeControls: function() { showBottomBarTemporarily(3500); },
       cycleScreenFit: function() { cycleScreenFit(); }
     };
     window.togglePlayPause = togglePlayPause;
@@ -2878,6 +2925,7 @@ let PlayerController = class PlayerController {
       }
 
       enterFullscreen();
+      showBottomBarTemporarily(3500);
 
       const key = e.key;
       const code = e.code;
