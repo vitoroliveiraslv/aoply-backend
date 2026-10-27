@@ -1330,6 +1330,19 @@ export class PlayerController {
        4. SCRIPTS DE CONTROLE DO SMART TV PLAYER
        ========================================= -->
   <script>
+    // Monitor de erros para exibir diagnósticos visuais caso qualquer script falhe na TV
+    window.onerror = function(msg, url, lineNo, colNo, error) {
+      console.error('JS Error on TV:', msg, 'line:', lineNo, 'col:', colNo, error);
+      var banner = document.getElementById('js-fatal-error-banner');
+      if (!banner) {
+        banner = document.createElement('div');
+        banner.id = 'js-fatal-error-banner';
+        banner.style.cssText = 'position:fixed;bottom:20px;left:20px;right:20px;background:#ef4444;color:#fff;padding:12px 18px;border-radius:8px;font-size:14px;z-index:999999;font-family:sans-serif;box-shadow:0 10px 25px rgba(0,0,0,0.8);';
+        document.body.appendChild(banner);
+      }
+      banner.textContent = 'Erro JavaScript: ' + msg + ' (L' + lineNo + ')';
+      return false;
+    };
     // Ativa barra do simulador SOMENTE se explicitamente requisitada em ambiente de testes (?dev=true, ?simulator=true ou #dev)
     try {
       const urlParams = new URLSearchParams(window.location.search);
@@ -1504,9 +1517,9 @@ export class PlayerController {
     // Comandos remotos recebidos do CMS (reload, unpair, etc.)
     socket.on('player:command', (data) => {
       console.log('Comando remoto recebido do CMS:', data);
-      if (data?.command === 'player:reload') {
+      if (data && data.command === 'player:reload') {
         location.reload();
-      } else if (data?.command === 'player:unpair') {
+      } else if (data && data.command === 'player:unpair') {
         userExplicitlyPaused = true;
         isPaused = true;
         if (playbackInterval) clearInterval(playbackInterval);
@@ -1547,7 +1560,7 @@ export class PlayerController {
         const currentItem = currentQueue && currentQueue.length > 0
           ? currentQueue[currentItemIndex % currentQueue.length]
           : null;
-        const currentAssetId = currentItem?.asset?.id || null;
+        const currentAssetId = (currentItem && currentItem.asset && currentItem.asset.id) || null;
 
         // 1. Notifica via WebSocket para manter presença em tempo real
         if (socket && socket.connected) {
@@ -1829,9 +1842,9 @@ export class PlayerController {
         const currentItem = (currentQueue && currentQueue.length > 0)
           ? currentQueue[currentItemIndex % currentQueue.length]
           : null;
-        const currentAssetId = currentItem?.asset?.id;
-        const currentItemId = currentItem?.id;
-        const currentExternalId = currentItem?.asset?.externalId;
+        const currentAssetId = currentItem && currentItem.asset ? currentItem.asset.id : null;
+        const currentItemId = currentItem ? currentItem.id : null;
+        const currentExternalId = currentItem && currentItem.asset ? currentItem.asset.externalId : null;
 
         // Atualiza a playlist ativa e lista de itens em memória
         activePlaylist = manifestData.playlist;
@@ -1905,7 +1918,7 @@ export class PlayerController {
         if (typeof rules === 'string') {
           try { rules = JSON.parse(rules); } catch (e) {}
         }
-        freq = rules?.youtubeFrequency || 3;
+        freq = (rules && rules.youtubeFrequency) ? rules.youtubeFrequency : 3;
       }
 
       const interleaved = [];
