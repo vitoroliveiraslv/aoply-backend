@@ -2135,6 +2135,9 @@ let PlayerController = class PlayerController {
                     ytPlayer.unMute();
                     ytPlayer.setVolume(100);
                   }
+                  if (typeof ytPlayer.setPlaybackQuality === 'function') {
+                    ytPlayer.setPlaybackQuality('hd720');
+                  }
                 } catch (e) {}
               }
             } else if (event.data === YT.PlayerState.PAUSED) {
